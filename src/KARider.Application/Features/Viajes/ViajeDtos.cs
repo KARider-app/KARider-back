@@ -13,6 +13,18 @@ public enum OrdenViajes
     Calificacion
 }
 
+/// <summary>Datos de ruta y gastos comunes a publicar y editar un viaje (ver <see cref="ViajeValidators"/>).</summary>
+public interface ICamposRutaViaje
+{
+    string Destino { get; }
+    double? DestinoLatitud { get; }
+    double? DestinoLongitud { get; }
+    int Asientos { get; }
+    decimal GastoTotal { get; }
+    string? Notas { get; }
+    IReadOnlyList<string>? Paradas { get; }
+}
+
 public sealed record PublicarViajeRequest(
     Guid? VehiculoId,
     int PuntoEncuentroId,
@@ -24,9 +36,19 @@ public sealed record PublicarViajeRequest(
     decimal GastoTotal,
     string? Notas,
     IReadOnlyList<string>? Paradas,
-    bool Publicar = true);
+    bool Publicar = true) : ICamposRutaViaje;
 
-public sealed record EditarViajeRequest(int PuntoEncuentroId, DateTimeOffset FechaSalida, int CuposLibres, string? MensajeAviso);
+public sealed record EditarViajeRequest(
+    int PuntoEncuentroId,
+    string Destino,
+    double? DestinoLatitud,
+    double? DestinoLongitud,
+    DateTimeOffset FechaSalida,
+    int Asientos,
+    decimal GastoTotal,
+    string? Notas,
+    IReadOnlyList<string>? Paradas,
+    string? MensajeAviso) : ICamposRutaViaje;
 
 public sealed record CambiarEstadoViajeRequest(EstadoViaje Estado, string? Mensaje);
 

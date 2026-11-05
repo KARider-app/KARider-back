@@ -5,15 +5,14 @@ using KARider.Domain.Enums;
 
 namespace KARider.Application.Features.Viajes;
 
-public sealed class PublicarViajeRequestValidator : AbstractValidator<PublicarViajeRequest>
+/// <summary>Reglas de ruta y gastos compartidas por <see cref="PublicarViajeRequestValidator"/> y
+/// <see cref="EditarViajeRequestValidator"/>, para no duplicarlas entre los dos formularios.</summary>
+internal sealed class CamposRutaViajeValidator : AbstractValidator<ICamposRutaViaje>
 {
     public const int MaximoParadas = 5;
-    public const int DiasMaximosAnticipacion = 30;
 
-    public PublicarViajeRequestValidator(TimeProvider time)
+    public CamposRutaViajeValidator()
     {
-        RuleFor(x => x.PuntoEncuentroId)
-            .GreaterThan(0).WithMessage("Selecciona el punto de encuentro en el campus UTTT.");
         RuleFor(x => x.Destino)
             .NotEmpty().WithMessage("El destino final es obligatorio.")
             .Length(3, 150).WithMessage("El destino debe tener entre 3 y 150 caracteres.");
@@ -23,13 +22,9 @@ public sealed class PublicarViajeRequestValidator : AbstractValidator<PublicarVi
             .Must(x => x.DestinoLatitud.HasValue == x.DestinoLongitud.HasValue)
             .WithName("DestinoLatitud")
             .WithMessage("Envía latitud y longitud del destino juntas, o ninguna de las dos.");
-        RuleFor(x => x.FechaSalida)
-            .Must(f => f > time.GetUtcNow()).WithMessage("La fecha y hora de salida debe ser posterior al momento actual.")
-            .Must(f => f <= time.GetUtcNow().AddDays(DiasMaximosAnticipacion))
-            .WithMessage($"Solo puedes publicar viajes con hasta {DiasMaximosAnticipacion} días de anticipación.");
         RuleFor(x => x.Asientos)
             .InclusiveBetween(1, Vehiculo.CapacidadMaxima)
-            .WithMessage($"Los asientos disponibles deben estar entre 1 y {Vehiculo.CapacidadMaxima}.");
+            .WithMessage($"Los asientos ofrecidos deben estar entre 1 y {Vehiculo.CapacidadMaxima}.");
         RuleFor(x => x.GastoTotal)
             .GreaterThan(0).WithMessage("El gasto total (gasolina + casetas) debe ser mayor a 0.")
             .LessThanOrEqualTo(5000).WithMessage("El gasto total no puede exceder $5,000 MXN; el carpooling no tiene fines de lucro.")
@@ -45,6 +40,22 @@ public sealed class PublicarViajeRequestValidator : AbstractValidator<PublicarVi
     }
 }
 
+public sealed class PublicarViajeRequestValidator : AbstractValidator<PublicarViajeRequest>
+{
+    public const int DiasMaximosAnticipacion = 30;
+
+    public PublicarViajeRequestValidator(TimeProvider time)
+    {
+        RuleFor(x => x.PuntoEncuentroId)
+            .GreaterThan(0).WithMessage("Selecciona el punto de encuentro en el campus UTTT.");
+        RuleFor(x => x.FechaSalida)
+            .Must(f => f > time.GetUtcNow()).WithMessage("La fecha y hora de salida debe ser posterior al momento actual.")
+            .Must(f => f <= time.GetUtcNow().AddDays(DiasMaximosAnticipacion))
+            .WithMessage($"Solo puedes publicar viajes con hasta {DiasMaximosAnticipacion} días de anticipación.");
+        RuleFor(x => (ICamposRutaViaje)x).SetValidator(new CamposRutaViajeValidator());
+    }
+}
+
 public sealed class EditarViajeRequestValidator : AbstractValidator<EditarViajeRequest>
 {
     public EditarViajeRequestValidator(TimeProvider time)
@@ -52,10 +63,10 @@ public sealed class EditarViajeRequestValidator : AbstractValidator<EditarViajeR
         RuleFor(x => x.PuntoEncuentroId)
             .GreaterThan(0).WithMessage("Selecciona el punto de encuentro en el campus UTTT.");
         RuleFor(x => x.FechaSalida)
-            .Must(f => f > time.GetUtcNow()).WithMessage("La nueva hora de salida debe ser posterior al momento actual.");
-        RuleFor(x => x.CuposLibres)
-            .InclusiveBetween(0, Vehiculo.CapacidadMaxima)
-            .WithMessage($"Los cupos libres deben estar entre 0 y {Vehiculo.CapacidadMaxima}.");
+            .Must(f => f > time.GetUtcNow()).WithMessage("La nueva hora de salida debe ser posterior al momento actual.")
+            .Must(f => f <= time.GetUtcNow().AddDays(PublicarViajeRequestValidator.DiasMaximosAnticipacion))
+            .WithMessage($"Solo puedes programar viajes con hasta {PublicarViajeRequestValidator.DiasMaximosAnticipacion} días de anticipación.");
+        RuleFor(x => (ICamposRutaViaje)x).SetValidator(new CamposRutaViajeValidator());
         RuleFor(x => x.MensajeAviso)
             .MaximumLength(300).WithMessage("El aviso para pasajeros no puede exceder 300 caracteres.");
     }
