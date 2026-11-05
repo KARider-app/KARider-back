@@ -170,6 +170,34 @@ public sealed class ViajeYReservaTests
     }
 
     [Fact]
+    public void Editar_reemplaza_destino_gasto_notas_y_paradas()
+    {
+        var viaje = CrearViaje(Guid.NewGuid(), asientos: 3); // nace con la parada "Actopan Centro"
+        Assert.Equal(["Actopan Centro"], viaje.Paradas.Select(p => p.Nombre));
+
+        var resultado = viaje.Actualizar(
+            2, "Centro de Tula", null, null, Ahora.AddHours(3),
+            3, 200m, "Nota nueva", ["Plaza Galerías"], capacidadVehiculo: 4, Ahora);
+
+        Assert.True(resultado.IsSuccess);
+        Assert.Equal("Centro de Tula", viaje.Destino);
+        Assert.Equal(200m, viaje.GastoTotal);
+        Assert.Equal(50m, viaje.AportePorAsiento); // 200 / (3 + 1)
+        Assert.Equal("Nota nueva", viaje.Notas);
+        Assert.Equal(["Plaza Galerías"], viaje.Paradas.Select(p => p.Nombre));
+    }
+
+    [Fact]
+    public void Editar_sin_paradas_deja_el_viaje_sin_paradas()
+    {
+        var viaje = CrearViaje(Guid.NewGuid(), asientos: 3);
+
+        viaje.Actualizar(1, viaje.Destino, null, null, Ahora.AddHours(3), 3, 160m, null, [], capacidadVehiculo: 4, Ahora);
+
+        Assert.Empty(viaje.Paradas);
+    }
+
+    [Fact]
     public void Editar_viaje_incrementa_numero_de_ediciones_solo_si_tiene_exito()
     {
         var viaje = CrearViaje(Guid.NewGuid(), asientos: 3);

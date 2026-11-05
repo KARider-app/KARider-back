@@ -194,7 +194,6 @@ public sealed class ViajeService(
     {
         var viaje = await db.Viajes
             .Include(v => v.Vehiculo)
-            .Include(v => v.Reservas)
             .Include(v => v.Paradas)
             .FirstOrDefaultAsync(v => v.Id == viajeId, ct);
 
@@ -241,7 +240,12 @@ public sealed class ViajeService(
             ? $"El conductor actualizó el viaje a {viaje.Destino}: salida {FormatearHora(viaje.FechaSalida)}. Revisa el punto de encuentro."
             : request.MensajeAviso.Trim();
 
-        foreach (var reserva in viaje.Reservas.Where(r => r.EstaActiva))
+        // Consulta aparte (no Include) para no combinar dos colecciones en el mismo query y multiplicar filas.
+        var reservasActivas = await db.Reservas
+            .Where(r => r.ViajeId == viaje.Id)
+            .ToListAsync(ct);
+
+        foreach (var reserva in reservasActivas.Where(r => r.EstaActiva))
         {
             notificador.Agregar(reserva.PasajeroId, TipoNotificacion.ViajeActualizado, $"Cambios en tu viaje a {viaje.Destino}", mensaje, viaje.Id, reserva.Id);
         }
