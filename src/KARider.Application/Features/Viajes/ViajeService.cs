@@ -195,6 +195,7 @@ public sealed class ViajeService(
         var viaje = await db.Viajes
             .Include(v => v.Vehiculo)
             .Include(v => v.Reservas)
+            .Include(v => v.Paradas)
             .FirstOrDefaultAsync(v => v.Id == viajeId, ct);
 
         if (viaje is null)
@@ -216,7 +217,18 @@ public sealed class ViajeService(
         var puntoEncuentroAnteriorId = viaje.PuntoEncuentroId;
         var cuposLibresAnteriores = viaje.AsientosDisponibles;
 
-        var resultado = viaje.Actualizar(request.PuntoEncuentroId, request.FechaSalida, request.CuposLibres, viaje.Vehiculo!.Capacidad, time.GetUtcNow());
+        var resultado = viaje.Actualizar(
+            request.PuntoEncuentroId,
+            request.Destino,
+            request.DestinoLatitud,
+            request.DestinoLongitud,
+            request.FechaSalida,
+            request.Asientos,
+            request.GastoTotal,
+            request.Notas,
+            request.Paradas ?? [],
+            viaje.Vehiculo!.Capacidad,
+            time.GetUtcNow());
         if (resultado.IsFailure)
         {
             return resultado.Error;

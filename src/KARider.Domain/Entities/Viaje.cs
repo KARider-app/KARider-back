@@ -153,8 +153,19 @@ public sealed class Viaje : Entity
     public void LiberarAsientos(int asientos) =>
         AsientosDisponibles = Math.Min(AsientosOfrecidos, AsientosDisponibles + asientos);
 
-    /// <summary>Edición del viaje publicado (pantalla P12). El aporte acordado no cambia.</summary>
-    public Result Actualizar(int puntoEncuentroId, DateTimeOffset fechaSalida, int cuposLibres, int capacidadVehiculo, DateTimeOffset ahora)
+    /// <summary>Edición del viaje publicado (pantalla P12): mismos datos que al publicarlo, salvo el vehículo.</summary>
+    public Result Actualizar(
+        int puntoEncuentroId,
+        string destino,
+        double? destinoLatitud,
+        double? destinoLongitud,
+        DateTimeOffset fechaSalida,
+        int asientosOfrecidos,
+        decimal gastoTotal,
+        string? notas,
+        IEnumerable<string> paradas,
+        int capacidadVehiculo,
+        DateTimeOffset ahora)
     {
         if (!EsEditable)
         {
@@ -167,15 +178,34 @@ public sealed class Viaje : Entity
         }
 
         var reservados = AsientosReservados;
-        if (cuposLibres + reservados > capacidadVehiculo)
+        if (asientosOfrecidos < reservados)
         {
-            return DomainErrors.Viaje.CuposInvalidos(reservados, capacidadVehiculo);
+            return DomainErrors.Viaje.AsientosInsuficientes(reservados);
+        }
+
+        if (asientosOfrecidos > capacidadVehiculo)
+        {
+            return DomainErrors.Vehiculo.CapacidadInsuficiente(asientosOfrecidos, capacidadVehiculo);
         }
 
         PuntoEncuentroId = puntoEncuentroId;
+        Destino = destino.Trim();
+        DestinoLatitud = destinoLatitud;
+        DestinoLongitud = destinoLongitud;
         FechaSalida = fechaSalida.ToUniversalTime();
-        AsientosOfrecidos = reservados + cuposLibres;
-        AsientosDisponibles = cuposLibres;
+        AsientosOfrecidos = asientosOfrecidos;
+        AsientosDisponibles = asientosOfrecidos - reservados;
+        GastoTotal = gastoTotal;
+        AportePorAsiento = CalcularAporte(gastoTotal, asientosOfrecidos);
+        Notas = string.IsNullOrWhiteSpace(notas) ? null : notas.Trim();
+
+        _paradas.Clear();
+        var orden = 1;
+        foreach (var parada in paradas.Where(p => !string.IsNullOrWhiteSpace(p)))
+        {
+            _paradas.Add(ParadaViaje.Crear(Id, orden++, parada));
+        }
+
         NumeroEdiciones++;
         return Result.Success();
     }

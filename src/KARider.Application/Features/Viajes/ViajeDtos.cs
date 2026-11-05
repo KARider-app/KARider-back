@@ -26,7 +26,17 @@ public sealed record PublicarViajeRequest(
     IReadOnlyList<string>? Paradas,
     bool Publicar = true);
 
-public sealed record EditarViajeRequest(int PuntoEncuentroId, DateTimeOffset FechaSalida, int CuposLibres, string? MensajeAviso);
+public sealed record EditarViajeRequest(
+    int PuntoEncuentroId,
+    string Destino,
+    double? DestinoLatitud,
+    double? DestinoLongitud,
+    DateTimeOffset FechaSalida,
+    int Asientos,
+    decimal GastoTotal,
+    string? Notas,
+    IReadOnlyList<string>? Paradas,
+    string? MensajeAviso);
 
 public sealed record CambiarEstadoViajeRequest(EstadoViaje Estado, string? Mensaje);
 
