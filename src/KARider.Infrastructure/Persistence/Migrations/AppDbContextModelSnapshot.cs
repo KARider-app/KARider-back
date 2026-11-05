@@ -241,6 +241,63 @@ namespace KARider.Infrastructure.Persistence.Migrations
                     b.ToTable("codigos_verificacion", (string)null);
                 });
 
+            modelBuilder.Entity("KARider.Domain.Entities.HistorialEdicionViaje", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ActualizadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actualizado_en");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("creado_en");
+
+                    b.Property<int>("CuposLibresAnteriores")
+                        .HasColumnType("integer")
+                        .HasColumnName("cupos_libres_anteriores");
+
+                    b.Property<int>("CuposLibresNuevos")
+                        .HasColumnType("integer")
+                        .HasColumnName("cupos_libres_nuevos");
+
+                    b.Property<DateTimeOffset>("FechaSalidaAnterior")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_salida_anterior");
+
+                    b.Property<DateTimeOffset>("FechaSalidaNueva")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_salida_nueva");
+
+                    b.Property<string>("MensajeAviso")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("mensaje_aviso");
+
+                    b.Property<int>("PuntoEncuentroAnteriorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("punto_encuentro_anterior_id");
+
+                    b.Property<int>("PuntoEncuentroNuevoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("punto_encuentro_nuevo_id");
+
+                    b.Property<Guid>("ViajeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("viaje_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_historial_ediciones_viaje");
+
+                    b.HasIndex("ViajeId", "CreadoEn")
+                        .HasDatabaseName("ix_historial_ediciones_viaje_viaje_id_creado_en");
+
+                    b.ToTable("historial_ediciones_viaje", (string)null);
+                });
+
             modelBuilder.Entity("KARider.Domain.Entities.Notificacion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -844,6 +901,10 @@ namespace KARider.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("notas");
 
+                    b.Property<int>("NumeroEdiciones")
+                        .HasColumnType("integer")
+                        .HasColumnName("numero_ediciones");
+
                     b.Property<int>("PuntoEncuentroId")
                         .HasColumnType("integer")
                         .HasColumnName("punto_encuentro_id");
@@ -873,6 +934,9 @@ namespace KARider.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_viajes");
 
+                    b.HasIndex("Destino")
+                        .HasDatabaseName("ix_viajes_destino");
+
                     b.HasIndex("PuntoEncuentroId")
                         .HasDatabaseName("ix_viajes_punto_encuentro_id");
 
@@ -890,6 +954,8 @@ namespace KARider.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_viajes_asientos", "asientos_disponibles >= 0 AND asientos_disponibles <= asientos_ofrecidos");
 
                             t.HasCheckConstraint("ck_viajes_gasto", "gasto_total > 0");
+
+                            t.HasCheckConstraint("ck_viajes_numero_ediciones", "numero_ediciones >= 0");
                         });
                 });
 
@@ -931,6 +997,16 @@ namespace KARider.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_codigos_verificacion_usuarios_usuario_id");
+                });
+
+            modelBuilder.Entity("KARider.Domain.Entities.HistorialEdicionViaje", b =>
+                {
+                    b.HasOne("KARider.Domain.Entities.Viaje", null)
+                        .WithMany()
+                        .HasForeignKey("ViajeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_historial_ediciones_viaje_viajes_viaje_id");
                 });
 
             modelBuilder.Entity("KARider.Domain.Entities.Notificacion", b =>

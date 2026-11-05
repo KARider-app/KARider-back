@@ -14,6 +14,7 @@ public interface IApplicationDbContext
     DbSet<Vehiculo> Vehiculos { get; }
     DbSet<Viaje> Viajes { get; }
     DbSet<ParadaViaje> ParadasViaje { get; }
+    DbSet<HistorialEdicionViaje> HistorialEdicionesViaje { get; }
     DbSet<Reserva> Reservas { get; }
     DbSet<Calificacion> Calificaciones { get; }
     DbSet<CodigoVerificacion> CodigosVerificacion { get; }

@@ -1,0 +1,83 @@
+# Análisis automático de calidad con SonarQube Cloud (plan gratuito para repositorios públicos).
+# Requisitos (ver README › Calidad de código):
+#   - Secret del repositorio SONAR_TOKEN (generado en sonarcloud.io › My Account › Security).
+#   - "Automatic Analysis" desactivado en SonarQube Cloud (Administration › Analysis Method).
+#   - Opcionales: variables SONAR_ORGANIZATION y SONAR_PROJECT_KEY si difieren de los valores por defecto.
+name: Calidad de código (SonarQube Cloud)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  sonar:
+    name: Análisis SonarQube Cloud
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_ORG: ${{ vars.SONAR_ORGANIZATION || 'aric92045-blip' }}
+      SONAR_PROJECT: ${{ vars.SONAR_PROJECT_KEY || 'aric92045-blip_KARider-back' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historial completo: Sonar lo usa para detectar código nuevo
+
+      - name: Verificar configuración
+        if: env.SONAR_TOKEN == ''
+        run: |
+          echo "::warning::Falta el secret SONAR_TOKEN; se omite el análisis. Ver README › Calidad de código."
+
+      - uses: actions/setup-java@v4
+        if: env.SONAR_TOKEN != ''
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-dotnet@v4
+        if: env.SONAR_TOKEN != ''
+        with:
+          global-json-file: global.json
+
+      - name: Caché de SonarQube Cloud
+        if: env.SONAR_TOKEN != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+
+      - name: Instalar SonarScanner for .NET
+        if: env.SONAR_TOKEN != ''
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Compilar, probar y analizar
+        if: env.SONAR_TOKEN != ''
+        run: |
+          # Las migraciones de EF Core son código generado por la herramienta (no se edita a mano);
+          # se excluyen del análisis igual que en .editorconfig (generated_code = true).
+          dotnet sonarscanner begin \
+            /k:"$SONAR_PROJECT" \
+            /o:"$SONAR_ORG" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.exclusions="**/Persistence/Migrations/**" \
+            /d:sonar.cs.opencover.reportsPaths="tests/**/TestResults/**/coverage.opencover.xml"
+          dotnet build KARider.sln -c Release
+          dotnet test KARider.sln -c Release --no-build \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+          dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"

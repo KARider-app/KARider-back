@@ -29,7 +29,7 @@ Los flujos de negocio esperados (sin cupo, duplicados, etc.) se resuelven con `R
 | P3/P4 Registro y verificación institucional | `POST /api/v1/auth/registro` (pasajero, o conductor con vehículo), `verificar-correo`, `reenviar-codigo` |
 | P5/P6 Consultar viajes | `GET /api/v1/viajes?destino=&puntoEncuentroId=&fecha=&orden=Horario\|MenorAporte\|Calificacion` (busca también en las paradas; si no hay resultados devuelve `items: []`) |
 | P7 Detalle (pasajero) | `GET /api/v1/viajes/{id}` (el teléfono del conductor solo se muestra con reserva confirmada) |
-| P7→P8 Apartar asiento | `POST /api/v1/viajes/{id}/reservas` → `POST /api/v1/reservas/{id}/aceptar\|rechazar` (flujo «Gestionar solicitudes» del diagrama) |
+| P7→P8 Apartar asiento | `POST /api/v1/viajes/{id}/reservas` (1 o 2 asientos; la reserva se confirma automáticamente y devuelve el folio) |
 | P8 Mapa y reserva confirmada | `GET /api/v1/reservas/{id}` (folio, punto de encuentro), `PUT/GET /api/v1/viajes/{id}/ubicacion` |
 | P9/P10 Publicar ruta | `POST /api/v1/viajes` (con `publicar=false` se guarda como borrador), cálculo automático del aporte |
 | P11/P12 Detalle conductor / Editar | `GET /api/v1/viajes/{id}` (incluye solicitudes), `PUT /api/v1/viajes/{id}` (notifica a los pasajeros), `PATCH /api/v1/viajes/{id}/estado` |

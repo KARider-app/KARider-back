@@ -95,8 +95,8 @@ public sealed class ReservaService(IApplicationDbContext db, Notificador notific
         notificador.Agregar(
             viaje.ConductorId,
             TipoNotificacion.ReservaSolicitada,
-            "Nueva solicitud de asiento",
-            $"{pasajero.NombreCompleto} solicitó {reserva.Asientos} asiento(s) para tu viaje a {viaje.Destino}.",
+            "Nueva reserva confirmada",
+            $"{pasajero.NombreCompleto} apartó {reserva.Asientos} asiento(s) para tu viaje a {viaje.Destino} (folio {reserva.Folio}).",
             viaje.Id,
             reserva.Id);
 

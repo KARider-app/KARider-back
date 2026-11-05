@@ -13,6 +13,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Vehiculo> Vehiculos => Set<Vehiculo>();
     public DbSet<Viaje> Viajes => Set<Viaje>();
     public DbSet<ParadaViaje> ParadasViaje => Set<ParadaViaje>();
+    public DbSet<HistorialEdicionViaje> HistorialEdicionesViaje => Set<HistorialEdicionViaje>();
     public DbSet<Reserva> Reservas => Set<Reserva>();
     public DbSet<Calificacion> Calificaciones => Set<Calificacion>();
     public DbSet<CodigoVerificacion> CodigosVerificacion => Set<CodigoVerificacion>();

@@ -1,3 +1,4 @@
+using KARider.Domain.Common;
 using KARider.Domain.Entities;
 using KARider.Domain.Enums;
 
@@ -60,7 +61,7 @@ public sealed class ViajeYReservaTests
     }
 
     [Fact]
-    public void Reserva_aparta_asientos_y_rechazo_los_libera()
+    public void Reserva_aparta_asientos_y_cancelacion_los_libera()
     {
         var viaje = CrearViaje(Guid.NewGuid());
         var reserva = Reserva.Crear(viaje, Guid.NewGuid(), 2, Ahora).Value;
@@ -69,9 +70,30 @@ public sealed class ViajeYReservaTests
         Assert.Equal(80m, reserva.MontoAporte);
         Assert.StartsWith("KAR-UTTT-2026-", reserva.Folio, StringComparison.Ordinal);
 
-        Assert.True(reserva.Rechazar(viaje, Ahora).IsSuccess);
+        Assert.True(reserva.Cancelar(viaje, Ahora).IsSuccess);
         Assert.Equal(3, viaje.AsientosDisponibles);
-        Assert.Equal(EstadoReserva.Rechazada, reserva.Estado);
+        Assert.Equal(EstadoReserva.Cancelada, reserva.Estado);
+    }
+
+    [Fact]
+    public void Reserva_se_confirma_automaticamente_al_crearse()
+    {
+        var viaje = CrearViaje(Guid.NewGuid());
+        var reserva = Reserva.Crear(viaje, Guid.NewGuid(), 1, Ahora).Value;
+
+        Assert.Equal(EstadoReserva.Confirmada, reserva.Estado);
+        Assert.True(reserva.EstaActiva);
+        Assert.Equal(Ahora, reserva.RespondidaEn);
+    }
+
+    [Fact]
+    public void Reserva_ya_confirmada_no_se_puede_rechazar()
+    {
+        var viaje = CrearViaje(Guid.NewGuid());
+        var reserva = Reserva.Crear(viaje, Guid.NewGuid(), 1, Ahora).Value;
+
+        Assert.Equal("RESERVA_ESTADO_INVALIDO", reserva.Rechazar(viaje, Ahora).Error.Code);
+        Assert.Equal(2, viaje.AsientosDisponibles);
     }
 
     [Fact]
@@ -122,17 +144,88 @@ public sealed class ViajeYReservaTests
         Assert.Equal("VIAJE_TRANSICION_INVALIDA", resultado.Error.Code);
     }
 
+    private static Result ActualizarViaje(
+        Viaje viaje,
+        int puntoEncuentroId,
+        DateTimeOffset fechaSalida,
+        int asientos,
+        int capacidadVehiculo,
+        decimal gastoTotal = 160m) =>
+        viaje.Actualizar(
+            puntoEncuentroId, viaje.Destino, null, null, fechaSalida,
+            asientos, gastoTotal, viaje.Notas, [], capacidadVehiculo, Ahora);
+
     [Fact]
-    public void Editar_cupos_no_puede_superar_capacidad_considerando_reservados()
+    public void Editar_asientos_ofrecidos_no_puede_ser_menor_a_los_reservados()
     {
         var viaje = CrearViaje(Guid.NewGuid(), asientos: 3);
         Reserva.Crear(viaje, Guid.NewGuid(), 2, Ahora);
 
-        var resultado = viaje.Actualizar(1, Ahora.AddHours(3), cuposLibres: 3, capacidadVehiculo: 4, Ahora);
+        var resultado = ActualizarViaje(viaje, 1, Ahora.AddHours(3), asientos: 1, capacidadVehiculo: 4);
 
-        Assert.Equal("VIAJE_CUPOS_INVALIDOS", resultado.Error.Code);
-        Assert.True(viaje.Actualizar(1, Ahora.AddHours(3), cuposLibres: 2, capacidadVehiculo: 4, Ahora).IsSuccess);
-        Assert.Equal(4, viaje.AsientosOfrecidos);
+        Assert.Equal("VIAJE_ASIENTOS_INSUFICIENTES", resultado.Error.Code);
+        Assert.True(ActualizarViaje(viaje, 1, Ahora.AddHours(3), asientos: 2, capacidadVehiculo: 4).IsSuccess);
+        Assert.Equal(2, viaje.AsientosOfrecidos);
+        Assert.Equal(0, viaje.AsientosDisponibles);
+    }
+
+    [Fact]
+    public void Editar_reemplaza_destino_gasto_notas_y_paradas()
+    {
+        var viaje = CrearViaje(Guid.NewGuid(), asientos: 3); // nace con la parada "Actopan Centro"
+        Assert.Equal(["Actopan Centro"], viaje.Paradas.Select(p => p.Nombre));
+
+        var resultado = viaje.Actualizar(
+            2, "Centro de Tula", null, null, Ahora.AddHours(3),
+            3, 200m, "Nota nueva", ["Plaza Galerías"], capacidadVehiculo: 4, Ahora);
+
+        Assert.True(resultado.IsSuccess);
+        Assert.Equal("Centro de Tula", viaje.Destino);
+        Assert.Equal(200m, viaje.GastoTotal);
+        Assert.Equal(50m, viaje.AportePorAsiento); // 200 / (3 + 1)
+        Assert.Equal("Nota nueva", viaje.Notas);
+        Assert.Equal(["Plaza Galerías"], viaje.Paradas.Select(p => p.Nombre));
+    }
+
+    [Fact]
+    public void Editar_sin_paradas_deja_el_viaje_sin_paradas()
+    {
+        var viaje = CrearViaje(Guid.NewGuid(), asientos: 3);
+
+        viaje.Actualizar(1, viaje.Destino, null, null, Ahora.AddHours(3), 3, 160m, null, [], capacidadVehiculo: 4, Ahora);
+
+        Assert.Empty(viaje.Paradas);
+    }
+
+    [Fact]
+    public void Editar_viaje_incrementa_numero_de_ediciones_solo_si_tiene_exito()
+    {
+        var viaje = CrearViaje(Guid.NewGuid(), asientos: 3);
+        Assert.Equal(0, viaje.NumeroEdiciones);
+
+        Assert.True(ActualizarViaje(viaje, 1, Ahora.AddHours(3), asientos: 2, capacidadVehiculo: 4).IsSuccess);
+        Assert.True(ActualizarViaje(viaje, 1, Ahora.AddHours(4), asientos: 3, capacidadVehiculo: 4).IsSuccess);
+        Assert.True(ActualizarViaje(viaje, 1, Ahora.AddMinutes(-5), asientos: 3, capacidadVehiculo: 4).IsFailure);
+
+        Assert.Equal(2, viaje.NumeroEdiciones);
+    }
+
+    [Fact]
+    public void Historial_de_edicion_conserva_valores_anteriores_y_nuevos()
+    {
+        var viaje = CrearViaje(Guid.NewGuid(), asientos: 3);
+        var salidaAnterior = viaje.FechaSalida;
+
+        ActualizarViaje(viaje, 2, Ahora.AddHours(5), asientos: 2, capacidadVehiculo: 4);
+        var historial = HistorialEdicionViaje.Registrar(viaje.Id, salidaAnterior, 1, 3, viaje, "  Cambio de horario  ");
+
+        Assert.Equal(salidaAnterior, historial.FechaSalidaAnterior);
+        Assert.Equal(Ahora.AddHours(5), historial.FechaSalidaNueva);
+        Assert.Equal(1, historial.PuntoEncuentroAnteriorId);
+        Assert.Equal(2, historial.PuntoEncuentroNuevoId);
+        Assert.Equal(3, historial.CuposLibresAnteriores);
+        Assert.Equal(2, historial.CuposLibresNuevos);
+        Assert.Equal("Cambio de horario", historial.MensajeAviso);
     }
 
     [Fact]

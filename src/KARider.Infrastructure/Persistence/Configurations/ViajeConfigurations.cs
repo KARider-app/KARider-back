@@ -12,6 +12,7 @@ internal sealed class ViajeConfiguration : IEntityTypeConfiguration<Viaje>
         {
             t.HasCheckConstraint("ck_viajes_asientos", "asientos_disponibles >= 0 AND asientos_disponibles <= asientos_ofrecidos");
             t.HasCheckConstraint("ck_viajes_gasto", "gasto_total > 0");
+            t.HasCheckConstraint("ck_viajes_numero_ediciones", "numero_ediciones >= 0");
         });
 
         builder.HasKey(v => v.Id);
@@ -36,6 +37,23 @@ internal sealed class ViajeConfiguration : IEntityTypeConfiguration<Viaje>
         // Búsqueda principal: viajes programados ordenados por salida.
         builder.HasIndex(v => new { v.Estado, v.FechaSalida });
         builder.HasIndex(v => new { v.ConductorId, v.FechaSalida });
+        // HU-06: filtro por destino (el índice por punto_encuentro_id ya lo crea la llave foránea).
+        builder.HasIndex(v => v.Destino);
+    }
+}
+
+internal sealed class HistorialEdicionViajeConfiguration : IEntityTypeConfiguration<HistorialEdicionViaje>
+{
+    public void Configure(EntityTypeBuilder<HistorialEdicionViaje> builder)
+    {
+        builder.ToTable("historial_ediciones_viaje");
+        builder.HasKey(h => h.Id);
+        builder.Property(h => h.MensajeAviso).HasMaxLength(500);
+
+        builder.HasOne<Viaje>().WithMany().HasForeignKey(h => h.ViajeId).OnDelete(DeleteBehavior.Cascade);
+
+        // Consulta del historial de un viaje en orden cronológico.
+        builder.HasIndex(h => new { h.ViajeId, h.CreadoEn });
     }
 }
 
