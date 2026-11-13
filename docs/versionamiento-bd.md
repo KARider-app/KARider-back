@@ -17,6 +17,15 @@ KARider versiona el esquema de PostgreSQL con **migraciones de Entity Framework 
 Archivos: `src/KARider.Infrastructure/Persistence/Migrations/` y el script equivalente
 [`database/sprint3_historial_ediciones.sql`](../database/sprint3_historial_ediciones.sql).
 
+## Migraciones del Sprint 4 (HU-08 · mapa con ruta real)
+
+| # | Migración | Tipo de cambio | Efecto |
+|---|---|---|---|
+| 1 | `20261113055522_Sprint4_CoordenadasRealesPuntosEncuentro` | Actualización de datos | Coordenadas reales de los 3 puntos de encuentro del campus UTTT (antes quedaban ~9 km al norte). Tomadas de OpenStreetMap |
+
+Archivos: el script equivalente [`database/sprint4_coordenadas_puntos_encuentro.sql`](../database/sprint4_coordenadas_puntos_encuentro.sql)
+y su reversión [`database/rollback/sprint4_revertir_coordenadas_puntos_encuentro.sql`](../database/rollback/sprint4_revertir_coordenadas_puntos_encuentro.sql).
+
 ## 1. Instalación (una sola vez)
 
 ```bash

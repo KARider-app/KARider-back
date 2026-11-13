@@ -295,6 +295,16 @@ public sealed class ViajeService(
             notificador.Agregar(reserva.PasajeroId, tipo, titulo, mensaje + extra, viaje.Id, reserva.Id);
         }
 
+        if (request.Estado == EstadoViaje.Completado && afectadas.Any(r => r.Estado == EstadoReserva.Completada))
+        {
+            notificador.Agregar(
+                conductorId,
+                TipoNotificacion.ViajeCompletado,
+                "Viaje concluido",
+                $"Tu viaje a {viaje.Destino} concluyó. ¡Califica a tus pasajeros!",
+                viaje.Id);
+        }
+
         await db.SaveChangesAsync(ct);
         await notificador.DespacharAsync(ct);
 

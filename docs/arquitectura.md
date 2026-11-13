@@ -30,13 +30,13 @@ Los flujos de negocio esperados (sin cupo, duplicados, etc.) se resuelven con `R
 | P5/P6 Consultar viajes | `GET /api/v1/viajes?destino=&puntoEncuentroId=&fecha=&orden=Horario\|MenorAporte\|Calificacion` (busca también en las paradas; si no hay resultados devuelve `items: []`) |
 | P7 Detalle (pasajero) | `GET /api/v1/viajes/{id}` (el teléfono del conductor solo se muestra con reserva confirmada) |
 | P7→P8 Apartar asiento | `POST /api/v1/viajes/{id}/reservas` (1 o 2 asientos; la reserva se confirma automáticamente y devuelve el folio) |
-| P8 Mapa y reserva confirmada | `GET /api/v1/reservas/{id}` (folio, punto de encuentro), `PUT/GET /api/v1/viajes/{id}/ubicacion` |
+| P8 Mapa y reserva confirmada (HU-08) | `GET /api/v1/reservas/{id}` (folio, punto de encuentro), `PUT/GET /api/v1/viajes/{id}/ubicacion`, `GET /api/v1/viajes/{id}/ruta` (ruta real por calles: el destino se geocodifica con Nominatim y la ruta se calcula con OSRM, ambos de OpenStreetMap; si fallan, línea recta), `GET /api/v1/viajes/{id}/llegada` (tiempo y distancia del conductor por calles; solo participantes confirmados con el viaje programado o en curso). Configuración en la sección `Mapas` |
 | P9/P10 Publicar ruta | `POST /api/v1/viajes` (con `publicar=false` se guarda como borrador), cálculo automático del aporte |
 | P11/P12 Detalle conductor / Editar | `GET /api/v1/viajes/{id}` (incluye solicitudes), `PUT /api/v1/viajes/{id}` (notifica a los pasajeros), `PATCH /api/v1/viajes/{id}/estado` |
 | Cálculo del aporte | `aporte = gastoTotal / (asientos + 1)` ($160 / (3 + 1) = $40), `GET /api/v1/viajes/{id}/aportes`, `POST /api/v1/reservas/{id}/aporte-pagado` |
-| P13 Historial | `GET /api/v1/perfil`, `GET /api/v1/perfil/historial?rol=Todos\|Pasajero\|Conductor` |
+| P13 Historial (HU-10) | `GET /api/v1/perfil` (estadísticas), `GET /api/v1/perfil/historial?rol=Todos\|Pasajero\|Conductor` (solo viajes en curso, completados o cancelados del usuario del JWT). Fórmulas en [formulas-impacto.md](formulas-impacto.md) |
 | P14 Calificación mutua | `POST /api/v1/calificaciones`, `GET /api/v1/calificaciones/pendientes`, `GET /api/v1/perfil/calificaciones`, `GET /api/v1/usuarios/{id}/calificaciones` |
-| P15 Credenciales UTTT | `GET /api/v1/perfil/credenciales`, `GET/POST/PUT/DELETE /api/v1/vehiculos` |
+| P15 Credenciales UTTT (HU-12) | `GET /api/v1/perfil/credenciales` o `GET /api/v1/usuarios/{id}/credenciales` (403 si `id` no es el usuario del JWT). El vehículo solo se incluye si el rol es Conductor; el estatus se deriva de `correo_verificado`. `GET/POST/PUT/DELETE /api/v1/vehiculos` |
 | PWA: notificaciones push | `GET /api/v1/notificaciones`, `GET /api/v1/notificaciones/push/clave-publica`, `POST /api/v1/notificaciones/push/suscripciones` |
 | Catálogos | `GET /api/v1/catalogos/carreras`, `puntos-encuentro`, `etiquetas-calificacion` (con caché de 10 minutos) |
 

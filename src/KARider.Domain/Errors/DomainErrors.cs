@@ -73,6 +73,10 @@ public static class DomainErrors
             "USUARIO_NO_ENCONTRADO",
             "El usuario solicitado no existe o fue desactivado.");
 
+        public static readonly Error CredencialesAjenas = Error.Forbidden(
+            "USUARIO_CREDENCIALES_AJENAS",
+            "Solo puedes consultar tus propias credenciales.");
+
         public static readonly Error CarreraInvalida = Error.Validation(
             "USUARIO_CARRERA_INVALIDA",
             "La carrera seleccionada no existe en el catálogo de la universidad.");

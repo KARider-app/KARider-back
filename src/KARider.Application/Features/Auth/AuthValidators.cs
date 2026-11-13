@@ -14,7 +14,8 @@ public sealed class VehiculoRequestValidator : AbstractValidator<VehiculoRequest
 
         RuleFor(x => x.Modelo)
             .NotEmpty().WithMessage("El modelo del vehículo es obligatorio (ej. Nissan Versa).")
-            .MaximumLength(80).WithMessage("El modelo del vehículo no puede exceder 80 caracteres.");
+            .MaximumLength(20).WithMessage("El modelo del vehículo no puede exceder 20 caracteres.")
+            .Matches(@"^[\p{L}\s]+$").WithMessage("El modelo del vehículo solo puede contener letras y espacios.");
         RuleFor(x => x.Color)
             .NotEmpty().WithMessage("El color del vehículo es obligatorio.")
             .MaximumLength(30).WithMessage("El color no puede exceder 30 caracteres.");
@@ -22,7 +23,7 @@ public sealed class VehiculoRequestValidator : AbstractValidator<VehiculoRequest
             .InclusiveBetween(1990, anioMaximo).WithMessage($"El año del vehículo debe estar entre 1990 y {anioMaximo}.");
         RuleFor(x => x.Placas)
             .NotEmpty().WithMessage("Las placas del vehículo son obligatorias.")
-            .Matches("^[A-Za-z0-9-]{5,10}$").WithMessage("Las placas deben tener entre 5 y 10 caracteres alfanuméricos o guiones (ej. HNX-421-C).");
+            .Matches("^[A-Za-z0-9]{9}$").WithMessage("Las placas deben tener exactamente 9 caracteres alfanuméricos, sin guiones (ej. HNX421BCD).");
         RuleFor(x => x.Capacidad)
             .InclusiveBetween(1, Vehiculo.CapacidadMaxima)
             .WithMessage($"La capacidad para pasajeros debe estar entre 1 y {Vehiculo.CapacidadMaxima}.");
@@ -40,11 +41,11 @@ public sealed class RegistroRequestValidator : AbstractValidator<RegistroRequest
             .WithMessage("El rol debe ser «Pasajero» o «Conductor».");
         RuleFor(x => x.NombreCompleto)
             .NotEmpty().WithMessage("El nombre completo es obligatorio.")
-            .Length(3, 120).WithMessage("El nombre completo debe tener entre 3 y 120 caracteres.")
-            .Matches(@"^[\p{L}\s.'-]+$").WithMessage("El nombre completo solo puede contener letras y espacios, como aparece en tu credencial.");
+            .Length(40, 120).WithMessage("El nombre completo debe tener entre 40 y 120 caracteres.")
+            .Matches(@"^[\p{L}\s]+$").WithMessage("El nombre completo solo puede contener letras y espacios, como aparece en tu credencial.");
         RuleFor(x => x.Matricula)
             .NotEmpty().WithMessage("La matrícula UTTT es obligatoria.")
-            .Matches(@"^\d{8,10}$").WithMessage("La matrícula UTTT debe contener entre 8 y 10 dígitos.");
+            .Matches(@"^\d{8}$").WithMessage("La matrícula UTTT debe contener exactamente 8 dígitos.");
         RuleFor(x => x.Telefono).Telefono();
         RuleFor(x => x.CarreraId)
             .GreaterThan(0).WithMessage("Selecciona tu carrera universitaria.");
