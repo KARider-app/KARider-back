@@ -68,7 +68,8 @@ public sealed record HistorialItemDto(
     EstadoReserva? EstadoReserva,
     bool? AportePagado,
     int? Pasajeros,
-    CompaneroDto? Companero);
+    CompaneroDto? Companero,
+    IReadOnlyList<string>? NombresPasajeros = null);
 
 public sealed record CredencialesDto(
     string CorreoInstitucional,
@@ -191,6 +192,10 @@ public sealed class PerfilService(IApplicationDbContext db, IOptions<Estadistica
             vehiculos);
     }
 
+    /// <summary>
+    /// Historial del usuario autenticado (HU-10). Regla de negocio 1: solo viajes en curso o completados;
+    /// los cancelados también se listan (la PWA los etiqueta aparte). Los programados aún no son historial.
+    /// </summary>
     public async Task<PagedResult<HistorialItemDto>> ObtenerHistorialAsync(Guid usuarioId, HistorialQuery query, CancellationToken ct)
     {
         // Se toman las primeras N filas de cada fuente y se combinan en memoria para paginar la unión.
@@ -201,33 +206,51 @@ public sealed class PerfilService(IApplicationDbContext db, IOptions<Estadistica
         if (query.Rol is FiltroRolHistorial.Todos or FiltroRolHistorial.Conductor)
         {
             var comoConductor = db.Viajes.AsNoTracking()
-                .Where(v => v.ConductorId == usuarioId && v.Estado != EstadoViaje.Borrador);
+                .Where(v => v.ConductorId == usuarioId
+                    && (v.Estado == EstadoViaje.EnCurso || v.Estado == EstadoViaje.Completado || v.Estado == EstadoViaje.Cancelado));
             total += await comoConductor.CountAsync(ct);
-            items.AddRange(await comoConductor
+            var filas = await comoConductor
                 .OrderByDescending(v => v.FechaSalida)
                 .Take(limite)
-                .Select(v => new HistorialItemDto(
+                .Select(v => new
+                {
                     v.Id,
-                    Rol.Conductor,
                     v.FechaSalida,
-                    v.Reservas
-                        .Where(r => r.Estado == EstadoReserva.Confirmada || r.Estado == EstadoReserva.Completada)
-                        .Sum(r => r.MontoAporte),
-                    v.PuntoEncuentro!.Nombre,
+                    Origen = v.PuntoEncuentro!.Nombre,
                     v.Destino,
                     v.Estado,
-                    null,
-                    null,
-                    v.Reservas
+                    Reservas = v.Reservas
                         .Where(r => r.Estado == EstadoReserva.Confirmada || r.Estado == EstadoReserva.Completada)
-                        .Sum(r => r.Asientos),
-                    null))
-                .ToListAsync(ct));
+                        .Select(r => new { r.MontoAporte, r.Asientos, Nombre = r.Pasajero!.NombreCompleto })
+                        .ToList(),
+                })
+                .ToListAsync(ct);
+
+            items.AddRange(filas.Select(v => new HistorialItemDto(
+                v.Id,
+                Rol.Conductor,
+                v.FechaSalida,
+                v.Reservas.Sum(r => r.MontoAporte),
+                v.Origen,
+                v.Destino,
+                v.Estado,
+                null,
+                null,
+                v.Reservas.Sum(r => r.Asientos),
+                null,
+                v.Reservas.Select(r => r.Nombre).ToList())));
         }
 
         if (query.Rol is FiltroRolHistorial.Todos or FiltroRolHistorial.Pasajero)
         {
-            var comoPasajero = db.Reservas.AsNoTracking().Where(r => r.PasajeroId == usuarioId);
+            // Solicitudes pendientes o rechazadas nunca fueron un viaje del pasajero; las canceladas sí se muestran.
+            var comoPasajero = db.Reservas.AsNoTracking()
+                .Where(r => r.PasajeroId == usuarioId
+                    && (r.Estado == EstadoReserva.Cancelada
+                        || ((r.Estado == EstadoReserva.Confirmada || r.Estado == EstadoReserva.Completada)
+                            && (r.Viaje!.Estado == EstadoViaje.EnCurso
+                                || r.Viaje.Estado == EstadoViaje.Completado
+                                || r.Viaje.Estado == EstadoViaje.Cancelado))));
             total += await comoPasajero.CountAsync(ct);
             items.AddRange(await comoPasajero
                 .OrderByDescending(r => r.Viaje!.FechaSalida)
@@ -247,7 +270,8 @@ public sealed class PerfilService(IApplicationDbContext db, IOptions<Estadistica
                         r.Viaje.ConductorId,
                         r.Viaje.Conductor!.NombreCompleto,
                         r.Viaje.Vehiculo!.Modelo + " (" + r.Viaje.Vehiculo.Color + ")",
-                        r.Viaje.Conductor.CalificacionPromedio)))
+                        r.Viaje.Conductor.CalificacionPromedio),
+                    null))
                 .ToListAsync(ct));
         }
 
@@ -260,31 +284,64 @@ public sealed class PerfilService(IApplicationDbContext db, IOptions<Estadistica
         return new PagedResult<HistorialItemDto>(pagina, query.Pagina, query.TamanoPagina, total);
     }
 
+    /// <summary>
+    /// Indicadores del perfil (regla de negocio 2): se calculan solo con viajes completados y con las fórmulas
+    /// de <see cref="CalculadoraImpacto"/>, documentadas en docs/formulas-impacto.md.
+    /// </summary>
     private async Task<EstadisticasDto> CalcularEstadisticasAsync(Guid usuarioId, CancellationToken ct)
     {
-        var comoConductor = await db.Viajes.AsNoTracking()
-            .CountAsync(v => v.ConductorId == usuarioId && v.Estado == EstadoViaje.Completado, ct);
+        var opciones = estadisticas.Value;
 
-        var reservasConductor = db.Reservas.AsNoTracking()
-            .Where(r => r.Estado == EstadoReserva.Completada && r.Viaje!.ConductorId == usuarioId);
-        var aportesRecibidos = await reservasConductor.SumAsync(r => (decimal?)r.MontoAporte, ct) ?? 0;
-        var asientosTransportados = await reservasConductor.SumAsync(r => (int?)r.Asientos, ct) ?? 0;
+        var viajesConductor = await db.Viajes.AsNoTracking()
+            .Where(v => v.ConductorId == usuarioId && v.Estado == EstadoViaje.Completado)
+            .Select(v => new
+            {
+                OrigenLatitud = v.PuntoEncuentro!.Latitud,
+                OrigenLongitud = v.PuntoEncuentro.Longitud,
+                v.DestinoLatitud,
+                v.DestinoLongitud,
+                Aportes = v.Reservas.Where(r => r.Estado == EstadoReserva.Completada).Sum(r => (decimal?)r.MontoAporte) ?? 0,
+                Asientos = v.Reservas.Where(r => r.Estado == EstadoReserva.Completada).Sum(r => (int?)r.Asientos) ?? 0,
+            })
+            .ToListAsync(ct);
 
-        var reservasPasajero = db.Reservas.AsNoTracking()
-            .Where(r => r.Estado == EstadoReserva.Completada && r.PasajeroId == usuarioId);
-        var comoPasajero = await reservasPasajero.CountAsync(ct);
-        var asientosComoPasajero = await reservasPasajero.SumAsync(r => (int?)r.Asientos, ct) ?? 0;
+        var reservasPasajero = await db.Reservas.AsNoTracking()
+            .Where(r => r.PasajeroId == usuarioId && r.Estado == EstadoReserva.Completada)
+            .Select(r => new
+            {
+                OrigenLatitud = r.Viaje!.PuntoEncuentro!.Latitud,
+                OrigenLongitud = r.Viaje.PuntoEncuentro.Longitud,
+                r.Viaje.DestinoLatitud,
+                r.Viaje.DestinoLongitud,
+                r.MontoAporte,
+                r.Asientos,
+            })
+            .ToListAsync(ct);
 
-        // Ahorro del pasajero: lo que costaría hacer el trayecto solo (gasto total) menos su aporte.
-        var ahorroPasajero = await reservasPasajero.SumAsync(r => (decimal?)(r.Viaje!.GastoTotal - r.MontoAporte), ct) ?? 0;
+        decimal ahorro = 0;
+        decimal co2 = 0;
 
-        var co2 = (asientosTransportados + asientosComoPasajero) * estadisticas.Value.KgCo2PorAsientoCompartido;
+        // Conductor: los aportes recibidos son gasolina que ya no paga solo.
+        foreach (var v in viajesConductor)
+        {
+            var km = CalculadoraImpacto.DistanciaKm(v.OrigenLatitud, v.OrigenLongitud, v.DestinoLatitud, v.DestinoLongitud, opciones.DistanciaPorDefectoKm);
+            ahorro += v.Aportes;
+            co2 += CalculadoraImpacto.Co2EvitadoKg(v.Asientos, km, opciones);
+        }
+
+        // Pasajero: tarifa de referencia de transporte privado menos el aporte que pagó.
+        foreach (var r in reservasPasajero)
+        {
+            var km = CalculadoraImpacto.DistanciaKm(r.OrigenLatitud, r.OrigenLongitud, r.DestinoLatitud, r.DestinoLongitud, opciones.DistanciaPorDefectoKm);
+            ahorro += CalculadoraImpacto.AhorroPasajero(km, r.MontoAporte, opciones);
+            co2 += CalculadoraImpacto.Co2EvitadoKg(r.Asientos, km, opciones);
+        }
 
         return new EstadisticasDto(
-            comoConductor + comoPasajero,
-            comoConductor,
-            comoPasajero,
-            Math.Round(aportesRecibidos + ahorroPasajero, 2),
+            viajesConductor.Count + reservasPasajero.Count,
+            viajesConductor.Count,
+            reservasPasajero.Count,
+            Math.Round(ahorro, 2),
             Math.Round(co2, 1));
     }
 }
