@@ -11,7 +11,7 @@ public sealed class ValidadoresTests
     private static readonly IOptions<InstitucionOptions> Institucion = Options.Create(new InstitucionOptions());
 
     private static RegistroRequest RegistroValido(string correo = "ana.lopez@uttt.edu.mx", string password = "Karider#2026") =>
-        new(Rol.Pasajero, "Ana María López Hernández García Pérez Gómez", "22300631", "7731234567", 1, 3, correo, password, password, null);
+        new(Rol.Pasajero, "María José Hernández García Castro López", "22300631", "7731234567", 1, 3, correo, password, password, null);
 
     [Fact]
     public void Registro_valido_no_tiene_errores()
@@ -51,6 +51,7 @@ public sealed class ValidadoresTests
 
     [Theory]
     [InlineData("Ana López")] // menos de 40 caracteres
+    [InlineData("María José Hernández García Castro López Ramírez")] // más de 40 caracteres
     [InlineData("Ana María López Hernández García Pérez #2")] // tiene caracteres que no son letras/espacios
     public void Registro_rechaza_nombre_completo_fuera_de_las_reglas(string nombre)
     {
