@@ -107,6 +107,9 @@ public sealed class HistorialQueryValidator : AbstractValidator<HistorialQuery>
 /// <summary>Perfil, estadísticas, historial y credenciales UTTT (P13, P15).</summary>
 public sealed class PerfilService(IApplicationDbContext db, IOptions<EstadisticasOptions> estadisticas)
 {
+    public const string EstatusVerificado = "Alumno Regular Activo";
+    public const string EstatusPendiente = "Pendiente de verificación";
+
     public async Task<Result<PerfilDto>> ObtenerAsync(Guid usuarioId, CancellationToken ct)
     {
         var usuario = await db.Usuarios.AsNoTracking()
@@ -167,6 +170,18 @@ public sealed class PerfilService(IApplicationDbContext db, IOptions<Estadistica
         return perfil is null ? DomainErrors.Usuario.NoEncontrado : perfil;
     }
 
+    /// <summary>
+    /// HU-12, regla 3: un usuario solo lee sus propias credenciales; el id del JWT debe coincidir con el solicitado.
+    /// </summary>
+    public async Task<Result<CredencialesDto>> ObtenerCredencialesAsync(Guid solicitanteId, Guid usuarioId, CancellationToken ct) =>
+        solicitanteId != usuarioId
+            ? DomainErrors.Usuario.CredencialesAjenas
+            : await ObtenerCredencialesAsync(usuarioId, ct);
+
+    /// <summary>
+    /// Ficha institucional (P15). Regla 1: el bloque de vehículo solo existe para conductores.
+    /// Regla 2: el estatus se deriva siempre de <c>correo_verificado</c>.
+    /// </summary>
     public async Task<Result<CredencialesDto>> ObtenerCredencialesAsync(Guid usuarioId, CancellationToken ct)
     {
         var usuario = await db.Usuarios.AsNoTracking()
@@ -178,16 +193,18 @@ public sealed class PerfilService(IApplicationDbContext db, IOptions<Estadistica
             return DomainErrors.Usuario.NoEncontrado;
         }
 
-        var vehiculos = await db.Vehiculos.AsNoTracking()
-            .Where(v => v.ConductorId == usuarioId && v.Activo)
-            .Select(v => new VehiculoDto(v.Id, v.Modelo, v.Color, v.Anio, v.Placas, v.Capacidad, v.Verificado))
-            .ToListAsync(ct);
+        IReadOnlyList<VehiculoDto> vehiculos = usuario.Rol == Rol.Conductor
+            ? await db.Vehiculos.AsNoTracking()
+                .Where(v => v.ConductorId == usuarioId && v.Activo)
+                .Select(v => new VehiculoDto(v.Id, v.Modelo, v.Color, v.Anio, v.Placas, v.Capacidad, v.Verificado))
+                .ToListAsync(ct)
+            : [];
 
         return new CredencialesDto(
             usuario.CorreoInstitucional,
             usuario.Matricula,
             usuario.Carrera?.Nombre ?? string.Empty,
-            usuario.CorreoVerificado ? "Alumno regular activo" : "Pendiente de verificación",
+            usuario.CorreoVerificado ? EstatusVerificado : EstatusPendiente,
             usuario.CorreoVerificado,
             vehiculos);
     }

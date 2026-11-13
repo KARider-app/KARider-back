@@ -36,7 +36,7 @@ Los flujos de negocio esperados (sin cupo, duplicados, etc.) se resuelven con `R
 | Cálculo del aporte | `aporte = gastoTotal / (asientos + 1)` ($160 / (3 + 1) = $40), `GET /api/v1/viajes/{id}/aportes`, `POST /api/v1/reservas/{id}/aporte-pagado` |
 | P13 Historial (HU-10) | `GET /api/v1/perfil` (estadísticas), `GET /api/v1/perfil/historial?rol=Todos\|Pasajero\|Conductor` (solo viajes en curso, completados o cancelados del usuario del JWT). Fórmulas en [formulas-impacto.md](formulas-impacto.md) |
 | P14 Calificación mutua | `POST /api/v1/calificaciones`, `GET /api/v1/calificaciones/pendientes`, `GET /api/v1/perfil/calificaciones`, `GET /api/v1/usuarios/{id}/calificaciones` |
-| P15 Credenciales UTTT | `GET /api/v1/perfil/credenciales`, `GET/POST/PUT/DELETE /api/v1/vehiculos` |
+| P15 Credenciales UTTT (HU-12) | `GET /api/v1/perfil/credenciales` o `GET /api/v1/usuarios/{id}/credenciales` (403 si `id` no es el usuario del JWT). El vehículo solo se incluye si el rol es Conductor; el estatus se deriva de `correo_verificado`. `GET/POST/PUT/DELETE /api/v1/vehiculos` |
 | PWA: notificaciones push | `GET /api/v1/notificaciones`, `GET /api/v1/notificaciones/push/clave-publica`, `POST /api/v1/notificaciones/push/suscripciones` |
 | Catálogos | `GET /api/v1/catalogos/carreras`, `puntos-encuentro`, `etiquetas-calificacion` (con caché de 10 minutos) |
 
