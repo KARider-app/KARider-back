@@ -45,6 +45,14 @@ public sealed class UsuariosController(PerfilService perfil, CalificacionService
     public async Task<IActionResult> PerfilPublico(Guid id, CancellationToken ct) =>
         FromResult(await perfil.ObtenerPublicoAsync(id, ct));
 
+    /// <summary>HU-12: credenciales UTTT; solo el propio usuario puede consultarlas (403 si el id es de otro).</summary>
+    [HttpGet("{id:guid}/credenciales")]
+    [ProducesResponseType<CredencialesDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Credenciales(Guid id, CancellationToken ct) =>
+        FromResult(await perfil.ObtenerCredencialesAsync(UsuarioId, id, ct));
+
     [HttpGet("{id:guid}/calificaciones")]
     [ProducesResponseType<ReputacionDto>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Reputacion(Guid id, [FromQuery] PaginacionQuery query, CancellationToken ct) =>
