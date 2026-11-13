@@ -33,7 +33,12 @@ public sealed class PerfilServiceTests
         db.Carreras.Add(new Carrera { Id = 1, Nombre = "ISC" });
         db.PuntosEncuentro.Add(new PuntoEncuentro
         {
-            Id = 1, Nombre = "Entrada UTTT", Descripcion = "Caseta", Latitud = 20.0539, Longitud = -99.3412, Activo = true,
+            Id = 1,
+            Nombre = "Entrada UTTT",
+            Descripcion = "Caseta",
+            Latitud = 20.0539,
+            Longitud = -99.3412,
+            Activo = true,
         });
 
         _usuario = Usuario.Crear("Kazumi Barrera", "22300010", "7731234500", "kazumi@uttt.edu.mx", "hash", Rol.Conductor, 1, 1);

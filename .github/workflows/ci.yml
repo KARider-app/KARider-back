@@ -5,6 +5,7 @@ on:
     branches: [develop, main]
   push:
     branches: [develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,6 +31,12 @@ jobs:
 
       - name: Restaurar
         run: dotnet restore KARider.sln
+
+      # Lint: formato y estilo según .editorconfig (no modifica archivos, solo verifica).
+      - name: Formato y estilo (dotnet format)
+        run: |
+          dotnet format whitespace KARider.sln --verify-no-changes
+          dotnet format style KARider.sln --verify-no-changes --severity warn --no-restore
 
       - name: Compilar (Release)
         run: dotnet build KARider.sln -c Release --no-restore
