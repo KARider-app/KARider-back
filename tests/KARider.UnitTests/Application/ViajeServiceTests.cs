@@ -70,6 +70,14 @@ public sealed class ViajeServiceTests
         return await viajes.EditarAsync(conductorId ?? _conductorId, viajeId, request, default);
     }
 
+    private async Task<Result<ViajeDetalleDto>> CambiarEstadoAsync(Guid viajeId, EstadoViaje estado, Guid? conductorId = null)
+    {
+        await using var db = NuevoContexto();
+        var notificador = new Notificador(db, new PushFalso(), NullLogger<Notificador>.Instance);
+        var viajes = new ViajeService(db, notificador, Options.Create(new InstitucionOptions()), TimeProvider.System);
+        return await viajes.CambiarEstadoAsync(conductorId ?? _conductorId, viajeId, new CambiarEstadoViajeRequest(estado, null), default);
+    }
+
     private static EditarViajeRequest Request(
         int puntoEncuentroId = 2,
         string destino = "Centro de Tula",
@@ -122,6 +130,34 @@ public sealed class ViajeServiceTests
         var resultado = await EditarAsync(viajeId, Request(), conductorId: Guid.NewGuid());
 
         Assert.Equal("VIAJE_NO_ES_PROPIETARIO", resultado.Error.Code);
+    }
+
+    [Fact]
+    public async Task Completar_viaje_notifica_al_pasajero_y_tambien_invita_al_conductor_a_calificar()
+    {
+        var viajeId = await SembrarViajeAsync(asientos: 3, asientosReservados: 2);
+
+        var enCurso = await CambiarEstadoAsync(viajeId, EstadoViaje.EnCurso);
+        Assert.True(enCurso.IsSuccess, enCurso.IsFailure ? enCurso.Error.Code : "");
+
+        var completado = await CambiarEstadoAsync(viajeId, EstadoViaje.Completado);
+        Assert.True(completado.IsSuccess, completado.IsFailure ? completado.Error.Code : "");
+
+        await using var db = NuevoContexto();
+        Assert.Contains(db.Notificaciones, n => n.UsuarioId == _pasajeroId && n.Tipo == TipoNotificacion.ViajeCompletado);
+        Assert.Contains(db.Notificaciones, n => n.UsuarioId == _conductorId && n.Tipo == TipoNotificacion.ViajeCompletado);
+    }
+
+    [Fact]
+    public async Task Completar_viaje_sin_pasajeros_no_notifica_al_conductor()
+    {
+        var viajeId = await SembrarViajeAsync(asientos: 3);
+
+        await CambiarEstadoAsync(viajeId, EstadoViaje.EnCurso);
+        await CambiarEstadoAsync(viajeId, EstadoViaje.Completado);
+
+        await using var db = NuevoContexto();
+        Assert.DoesNotContain(db.Notificaciones, n => n.UsuarioId == _conductorId);
     }
 
     private sealed class PushFalso : IPushSender
