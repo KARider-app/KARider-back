@@ -11,7 +11,7 @@ public sealed class ValidadoresTests
     private static readonly IOptions<InstitucionOptions> Institucion = Options.Create(new InstitucionOptions());
 
     private static RegistroRequest RegistroValido(string correo = "ana.lopez@uttt.edu.mx", string password = "Karider#2026") =>
-        new(Rol.Pasajero, "Ana López", "22300631", "773 123 4567", 1, 3, correo, password, password, null);
+        new(Rol.Pasajero, "Ana María López Hernández García Pérez Gómez", "22300631", "7731234567", 1, 3, correo, password, password, null);
 
     [Fact]
     public void Registro_valido_no_tiene_errores()
@@ -47,6 +47,62 @@ public sealed class ValidadoresTests
         var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(request);
 
         Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(RegistroRequest.Vehiculo));
+    }
+
+    [Theory]
+    [InlineData("Ana López")] // menos de 40 caracteres
+    [InlineData("Ana María López Hernández García Pérez #2")] // tiene caracteres que no son letras/espacios
+    public void Registro_rechaza_nombre_completo_fuera_de_las_reglas(string nombre)
+    {
+        var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido() with { NombreCompleto = nombre });
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(RegistroRequest.NombreCompleto));
+    }
+
+    [Theory]
+    [InlineData("2230063")] // 7 dígitos
+    [InlineData("223006311")] // 9 dígitos
+    [InlineData("2230063A")] // contiene una letra
+    public void Registro_rechaza_matricula_que_no_sean_exactamente_8_digitos(string matricula)
+    {
+        var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido() with { Matricula = matricula });
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(RegistroRequest.Matricula));
+    }
+
+    [Theory]
+    [InlineData("773123456")] // 9 dígitos
+    [InlineData("77312345678")] // 11 dígitos
+    [InlineData("773123A567")] // contiene una letra
+    [InlineData("773 123 4567")] // tiene espacios
+    public void Registro_rechaza_telefono_que_no_sean_exactamente_10_digitos(string telefono)
+    {
+        var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido() with { Telefono = telefono });
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(RegistroRequest.Telefono));
+    }
+
+    [Theory]
+    [InlineData("Nissan Versa 2024")] // contiene números
+    [InlineData("Un Modelo Demasiado Largo Para Entrar")] // más de 20 caracteres
+    public void Vehiculo_rechaza_modelo_fuera_de_las_reglas(string modelo)
+    {
+        var request = new VehiculoRequest(modelo, "Azul", 2022, "HNX421BCD", 4);
+        var resultado = new VehiculoRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(VehiculoRequest.Modelo));
+    }
+
+    [Theory]
+    [InlineData("HNX421BC")] // 8 caracteres
+    [InlineData("HNX421BCDE")] // 10 caracteres
+    [InlineData("HNX-421-C")] // tiene guiones
+    public void Vehiculo_rechaza_placas_que_no_sean_exactamente_9_alfanumericos(string placas)
+    {
+        var request = new VehiculoRequest("Nissan Versa", "Azul", 2022, placas, 4);
+        var resultado = new VehiculoRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(VehiculoRequest.Placas));
     }
 
     [Fact]

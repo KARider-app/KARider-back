@@ -27,8 +27,7 @@ public static class ReglasComunes
     public static IRuleBuilderOptions<T, string> Telefono<T>(this IRuleBuilder<T, string> rule) =>
         rule
             .NotEmpty().WithMessage("El número de WhatsApp/celular es obligatorio.")
-            .Matches(@"^\+?[0-9\s\-]{10,18}$").WithMessage("El número de WhatsApp/celular debe contener 10 dígitos (puede incluir lada, espacios o guiones).")
-            .Must(t => t.Count(char.IsDigit) is >= 10 and <= 13).WithMessage("El número de WhatsApp/celular debe tener entre 10 y 13 dígitos.");
+            .Matches(@"^\d{10}$").WithMessage("El número de WhatsApp/celular debe tener exactamente 10 dígitos, sin letras ni otros caracteres.");
 
     public static IRuleBuilderOptions<T, string> CodigoVerificacion<T>(this IRuleBuilder<T, string> rule) =>
         rule
