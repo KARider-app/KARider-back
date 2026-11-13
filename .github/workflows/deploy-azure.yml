@@ -29,9 +29,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -52,13 +52,13 @@ jobs:
           dotnet ef migrations bundle -p src/KARider.Infrastructure -s src/KARider.API \
             --configuration Release --self-contained -r linux-x64 -o ./efbundle --force
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: api
           path: ./publish
           retention-days: 7
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: efbundle
           path: ./efbundle
@@ -77,14 +77,14 @@ jobs:
       id-token: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: api
           path: ./publish
 
       - name: Aplicar migraciones a PostgreSQL
         if: vars.MIGRAR_EN_CI == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: efbundle
           path: ./bundle
@@ -98,7 +98,7 @@ jobs:
           ./bundle/efbundle --connection "$DB"
 
       - name: Iniciar sesión en Azure (OIDC)
-        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DB5D6F777D9D42ED938E3371ED3C55E0 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_AC7CF7358391438083C182F68AB6D94C }}
