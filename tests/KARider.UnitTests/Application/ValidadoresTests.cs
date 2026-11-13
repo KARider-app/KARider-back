@@ -62,4 +62,43 @@ public sealed class ValidadoresTests
         Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(PublicarViajeRequest.GastoTotal));
         Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(PublicarViajeRequest.Paradas));
     }
+
+    [Fact]
+    public void Editar_viaje_valido_no_tiene_errores()
+    {
+        var request = new EditarViajeRequest(
+            1, "Centro de Tula", null, null, DateTimeOffset.UtcNow.AddHours(3),
+            3, 200m, "Nota", ["Plaza Galerías"], null);
+
+        var resultado = new EditarViajeRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.True(resultado.IsValid, string.Join(" | ", resultado.Errors));
+    }
+
+    [Fact]
+    public void Editar_viaje_comparte_las_reglas_de_ruta_y_gastos_con_publicar()
+    {
+        var request = new EditarViajeRequest(
+            1, "Centro de Tula", null, null, DateTimeOffset.UtcNow.AddHours(3),
+            6, 0, null, ["a", "b", "c", "d", "e", "f"], null);
+
+        var resultado = new EditarViajeRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(EditarViajeRequest.Asientos));
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(EditarViajeRequest.GastoTotal));
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(EditarViajeRequest.Paradas));
+    }
+
+    [Fact]
+    public void Editar_viaje_rechaza_fecha_pasada_y_mensaje_de_aviso_demasiado_largo()
+    {
+        var request = new EditarViajeRequest(
+            1, "Centro de Tula", null, null, DateTimeOffset.UtcNow.AddMinutes(-5),
+            3, 200m, null, [], new string('a', 301));
+
+        var resultado = new EditarViajeRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(EditarViajeRequest.FechaSalida));
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(EditarViajeRequest.MensajeAviso));
+    }
 }

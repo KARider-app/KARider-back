@@ -194,7 +194,7 @@ public sealed class ViajeService(
     {
         var viaje = await db.Viajes
             .Include(v => v.Vehiculo)
-            .Include(v => v.Reservas)
+            .Include(v => v.Paradas)
             .FirstOrDefaultAsync(v => v.Id == viajeId, ct);
 
         if (viaje is null)
@@ -212,17 +212,40 @@ public sealed class ViajeService(
             return DomainErrors.Viaje.PuntoEncuentroInvalido;
         }
 
-        var resultado = viaje.Actualizar(request.PuntoEncuentroId, request.FechaSalida, request.CuposLibres, viaje.Vehiculo!.Capacidad, time.GetUtcNow());
+        var fechaSalidaAnterior = viaje.FechaSalida;
+        var puntoEncuentroAnteriorId = viaje.PuntoEncuentroId;
+        var cuposLibresAnteriores = viaje.AsientosDisponibles;
+
+        var resultado = viaje.Actualizar(
+            request.PuntoEncuentroId,
+            request.Destino,
+            request.DestinoLatitud,
+            request.DestinoLongitud,
+            request.FechaSalida,
+            request.Asientos,
+            request.GastoTotal,
+            request.Notas,
+            request.Paradas ?? [],
+            viaje.Vehiculo!.Capacidad,
+            time.GetUtcNow());
         if (resultado.IsFailure)
         {
             return resultado.Error;
         }
 
+        db.HistorialEdicionesViaje.Add(HistorialEdicionViaje.Registrar(
+            viaje.Id, fechaSalidaAnterior, puntoEncuentroAnteriorId, cuposLibresAnteriores, viaje, request.MensajeAviso));
+
         var mensaje = string.IsNullOrWhiteSpace(request.MensajeAviso)
             ? $"El conductor actualizó el viaje a {viaje.Destino}: salida {FormatearHora(viaje.FechaSalida)}. Revisa el punto de encuentro."
             : request.MensajeAviso.Trim();
 
-        foreach (var reserva in viaje.Reservas.Where(r => r.EstaActiva))
+        // Consulta aparte (no Include) para no combinar dos colecciones en el mismo query y multiplicar filas.
+        var reservasActivas = await db.Reservas
+            .Where(r => r.ViajeId == viaje.Id)
+            .ToListAsync(ct);
+
+        foreach (var reserva in reservasActivas.Where(r => r.EstaActiva))
         {
             notificador.Agregar(reserva.PasajeroId, TipoNotificacion.ViajeActualizado, $"Cambios en tu viaje a {viaje.Destino}", mensaje, viaje.Id, reserva.Id);
         }
@@ -270,6 +293,16 @@ public sealed class ViajeService(
             };
 
             notificador.Agregar(reserva.PasajeroId, tipo, titulo, mensaje + extra, viaje.Id, reserva.Id);
+        }
+
+        if (request.Estado == EstadoViaje.Completado && afectadas.Any(r => r.Estado == EstadoReserva.Completada))
+        {
+            notificador.Agregar(
+                conductorId,
+                TipoNotificacion.ViajeCompletado,
+                "Viaje concluido",
+                $"Tu viaje a {viaje.Destino} concluyó. ¡Califica a tus pasajeros!",
+                viaje.Id);
         }
 
         await db.SaveChangesAsync(ct);

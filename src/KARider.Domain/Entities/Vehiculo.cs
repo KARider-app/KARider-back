@@ -2,7 +2,7 @@ using KARider.Domain.Common;
 
 namespace KARider.Domain.Entities;
 
-/// <summary>Vehículo autorizado de un conductor para carpooling.</summary>
+///Vehículo autorizado de un conductor para carpooling
 public sealed class Vehiculo : Entity
 {
     public const int CapacidadMaxima = 4;
@@ -21,10 +21,10 @@ public sealed class Vehiculo : Entity
 
     public int Anio { get; private set; }
 
-    /// <summary>Placas normalizadas en mayúsculas.</summary>
+    ///Placas normalizadas en mayúsculas.
     public string Placas { get; private set; } = string.Empty;
 
-    /// <summary>Asientos autorizados para pasajeros (sin contar al conductor).</summary>
+    /// Asientos autorizados para pasajeros obviamente sin contar al conductor 
     public int Capacidad { get; private set; }
 
     public bool Verificado { get; private set; }

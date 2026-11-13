@@ -4,7 +4,7 @@ using KARider.Domain.Errors;
 
 namespace KARider.Domain.Entities;
 
-/// <summary>Calificación mutua entre conductor y pasajero al concluir un viaje.</summary>
+///Calificación mutua entre conductor y pasajero al concluir un viaje 
 public sealed class Calificacion : Entity
 {
     private Calificacion()

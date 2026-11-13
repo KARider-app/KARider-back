@@ -5,9 +5,10 @@ using KARider.Domain.Errors;
 
 namespace KARider.Domain.Entities;
 
-/// <summary>
-/// Solicitud de asientos de un pasajero en un viaje. Flujo: Pendiente → Confirmada/Rechazada → Completada.
-/// </summary>
+
+/// Reserva de asientos de un pasajero en un viaje. Se confirma automáticamente al crearse (HU-07).
+/// Flujo: Confirmada → Completada, o Confirmada → Cancelada.
+
 public sealed class Reserva : Entity
 {
     public const int MaximoAsientosPorReserva = 2;
@@ -26,10 +27,10 @@ public sealed class Reserva : Entity
 
     public int Asientos { get; private set; }
 
-    /// <summary>Aporte total acordado (asientos × aporte por asiento) en MXN.</summary>
+    //Aporte total acordado (asientos × aporte por asiento).
     public decimal MontoAporte { get; private set; }
 
-    /// <summary>Folio legible para el pasajero, ej. KAR-UTTT-2026-907412.</summary>
+    /// Folio legible para el pasajero.
     public string Folio { get; private set; } = string.Empty;
 
     public EstadoReserva Estado { get; private set; }
@@ -68,7 +69,9 @@ public sealed class Reserva : Entity
             Asientos = asientos,
             MontoAporte = asientos * viaje.AportePorAsiento,
             Folio = GenerarFolio(ahora),
-            Estado = EstadoReserva.Pendiente
+            // HU-07: si hay cupo, la reserva queda confirmada de inmediato (sin aprobación del conductor).
+            Estado = EstadoReserva.Confirmada,
+            RespondidaEn = ahora
         };
     }
 
@@ -97,7 +100,7 @@ public sealed class Reserva : Entity
         return Result.Success();
     }
 
-    /// <summary>Cancelación hecha por el pasajero antes de que el viaje inicie.</summary>
+    ///Cancelación hecha por el pasajero antes de que el viaje inicie en un tiempo 
     public Result Cancelar(Viaje viaje, DateTimeOffset ahora)
     {
         if (!EstaActiva || viaje.Estado != EstadoViaje.Programado)

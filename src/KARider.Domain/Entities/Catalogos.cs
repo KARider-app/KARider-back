@@ -1,6 +1,6 @@
 namespace KARider.Domain.Entities;
 
-/// <summary>Carrera universitaria de la UTTT (catálogo).</summary>
+///Carrera universitaria de la UTTT catálogo
 public sealed class Carrera
 {
     public int Id { get; set; }

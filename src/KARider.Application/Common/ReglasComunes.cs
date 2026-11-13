@@ -2,7 +2,8 @@ using FluentValidation;
 
 namespace KARider.Application.Common;
 
-/// <summary>Reglas de validación reutilizables con mensajes específicos en español.</summary>
+//Reglas de validación reutilizables con mensajes específicos en español para hacer la validación completa
+
 public static class ReglasComunes
 {
     public static IRuleBuilderOptions<T, string> PasswordSegura<T>(this IRuleBuilder<T, string> rule) =>

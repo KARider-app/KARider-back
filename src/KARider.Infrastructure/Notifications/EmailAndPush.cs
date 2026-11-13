@@ -22,8 +22,6 @@ public sealed class SmtpOptions
 
     public string? Password { get; set; }
 
-    public bool HabilitarSsl { get; set; } = true;
-
     public string Remitente { get; set; } = "no-reply@karider.app";
 
     public string NombreRemitente { get; set; } = "KARider UTTT";
@@ -62,7 +60,7 @@ internal sealed class SmtpEmailSender(IOptions<SmtpOptions> options) : IEmailSen
 
         using var cliente = new SmtpClient(_options.Host, _options.Port)
         {
-            EnableSsl = _options.HabilitarSsl,
+            EnableSsl = true,
             DeliveryMethod = SmtpDeliveryMethod.Network,
             Credentials = string.IsNullOrWhiteSpace(_options.Usuario)
                 ? CredentialCache.DefaultNetworkCredentials

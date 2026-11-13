@@ -73,6 +73,10 @@ public static class DomainErrors
             "USUARIO_NO_ENCONTRADO",
             "El usuario solicitado no existe o fue desactivado.");
 
+        public static readonly Error CredencialesAjenas = Error.Forbidden(
+            "USUARIO_CREDENCIALES_AJENAS",
+            "Solo puedes consultar tus propias credenciales.");
+
         public static readonly Error CarreraInvalida = Error.Validation(
             "USUARIO_CARRERA_INVALIDA",
             "La carrera seleccionada no existe en el catálogo de la universidad.");
@@ -137,9 +141,9 @@ public static class DomainErrors
                 ? "El viaje ya no tiene asientos disponibles."
                 : $"Solo quedan {disponibles} asiento(s) disponible(s) en este viaje.");
 
-        public static Error CuposInvalidos(int reservados, int capacidad) => Error.BusinessRule(
-            "VIAJE_CUPOS_INVALIDOS",
-            $"Los cupos libres más los {reservados} asiento(s) ya reservados no pueden superar la capacidad del vehículo ({capacidad}).");
+        public static Error AsientosInsuficientes(int reservados) => Error.BusinessRule(
+            "VIAJE_ASIENTOS_INSUFICIENTES",
+            $"Ya hay {reservados} asiento(s) reservado(s): no puedes ofrecer menos de {reservados}.");
 
         public static readonly Error NoDisponible = Error.BusinessRule(
             "VIAJE_NO_DISPONIBLE",

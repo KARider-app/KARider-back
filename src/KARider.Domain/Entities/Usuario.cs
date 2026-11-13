@@ -3,9 +3,9 @@ using KARider.Domain.Enums;
 
 namespace KARider.Domain.Entities;
 
-/// <summary>
-/// Estudiante de la UTTT (pasajero o conductor). Un conductor también puede viajar como pasajero.
-/// </summary>
+
+// Estudiante de la UTTT pasajero o conductor Un conductor también puede viajar como pasajero.
+
 public sealed class Usuario : Entity
 {
     private readonly List<Vehiculo> _vehiculos = [];
@@ -20,7 +20,7 @@ public sealed class Usuario : Entity
 
     public string Telefono { get; private set; } = string.Empty;
 
-    /// <summary>Correo institucional normalizado en minúsculas.</summary>
+    ///Correo institucional normalizado en minúsculas
     public string CorreoInstitucional { get; private set; } = string.Empty;
 
     public string PasswordHash { get; private set; } = string.Empty;
@@ -49,7 +49,7 @@ public sealed class Usuario : Entity
 
     public DateTimeOffset? BloqueadoHasta { get; private set; }
 
-    /// <summary>Cambia cuando se modifica la contraseña; permite invalidar sesiones anteriores.</summary>
+    ///Cambia cuando se modifica la contraseña; permite invalidar sesiones anteriores.
     public string SecurityStamp { get; private set; } = Guid.NewGuid().ToString("N");
 
     public IReadOnlyCollection<Vehiculo> Vehiculos => _vehiculos;

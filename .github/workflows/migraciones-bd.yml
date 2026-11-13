@@ -1,0 +1,90 @@
+# Demostración reproducible del versionamiento de la base de datos con EF Core Migrations.
+# Se ejecuta a mano (Actions › "Migraciones de BD (demostración)" › Run workflow) o en los PR que
+# cambian migraciones, contra un
+# PostgreSQL 15 desechable creado solo para esta ejecución: nunca toca la base de producción.
+# Muestra: migraciones pendientes, aplicación, historial, reversión controlada, reaplicación
+# y ejecución de todas las migraciones desde una base limpia.
+name: Migraciones de BD (demostración)
+
+on:
+  workflow_dispatch:
+  # También corre en los PR que cambian migraciones, para comprobar que se aplican y revierten.
+  pull_request:
+    paths:
+      - 'src/KARider.Infrastructure/Persistence/Migrations/**'
+      - '.github/workflows/migraciones-bd.yml'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # Base efímera del job (sin contraseña: solo acepta conexiones locales del runner).
+  ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=karider;Username=karider
+  PGHOST: localhost
+  PGUSER: karider
+  PGDATABASE: karider
+  EF_OPTS: --project src/KARider.Infrastructure --startup-project src/KARider.API --no-build
+
+jobs:
+  migraciones:
+    name: Migraciones EF Core en PostgreSQL 15
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: karider
+          POSTGRES_DB: karider
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U karider -d karider"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: 1. Instalar dotnet-ef y compilar
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.0.*
+          dotnet ef --version
+          dotnet build src/KARider.API/KARider.API.csproj -c Debug
+
+      - name: 2. Migraciones pendientes en la base vacía
+        run: dotnet ef migrations list $EF_OPTS
+
+      - name: 3. Aplicar todas las migraciones
+        run: dotnet ef database update $EF_OPTS
+
+      - name: 4. Historial de migraciones aplicadas y estructura creada
+        run: |
+          dotnet ef migrations list $EF_OPTS
+          psql -c "SELECT migration_id, product_version FROM __ef_migrations_history ORDER BY migration_id;"
+          psql -c "\d historial_ediciones_viaje"
+          psql -c "SELECT column_name, data_type, column_default FROM information_schema.columns WHERE table_name = 'viajes' AND column_name = 'numero_ediciones';"
+          psql -c "SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'ck_viajes_numero_ediciones';"
+
+      - name: 5. Revertir la última migración (rollback nativo)
+        run: |
+          dotnet ef database update Sprint3_NumeroEdicionesViaje $EF_OPTS
+          dotnet ef migrations list $EF_OPTS
+          psql -c "SELECT count(*) AS restricciones_ck_numero_ediciones FROM pg_constraint WHERE conname = 'ck_viajes_numero_ediciones';"
+
+      - name: 6. Reaplicar la migración revertida
+        run: |
+          dotnet ef database update $EF_OPTS
+          dotnet ef migrations list $EF_OPTS
+          psql -c "SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'ck_viajes_numero_ediciones';"
+
+      - name: 7. Todas las migraciones desde una base limpia
+        run: |
+          dotnet ef database drop --force $EF_OPTS
+          dotnet ef database update $EF_OPTS
+          dotnet ef migrations list $EF_OPTS
+          psql -c "SELECT count(*) AS migraciones_aplicadas FROM __ef_migrations_history;"

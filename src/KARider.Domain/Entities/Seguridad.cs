@@ -3,10 +3,9 @@ using KARider.Domain.Enums;
 
 namespace KARider.Domain.Entities;
 
-/// <summary>
-/// Código de un solo uso (verificación de correo o restablecimiento de contraseña).
-/// Solo se almacena el hash del código.
-/// </summary>
+
+/// Código de un solo uso verificación de correo o restablecimiento de contraseña que solo almecene el hash
+
 public sealed class CodigoVerificacion : Entity
 {
     private CodigoVerificacion()
@@ -42,10 +41,10 @@ public sealed class CodigoVerificacion : Entity
     public void MarcarUsado(DateTimeOffset ahora) => UsadoEn = ahora;
 }
 
-/// <summary>
-/// Token de actualización con rotación. Solo se almacena su hash; al reutilizar un token revocado
-/// se revocan todas las sesiones del usuario (detección de robo).
-/// </summary>
+
+/// Token de actualización con rotación. Solo se almacena su hash al reutilizar un token revocado
+/// se revocan todas las sesiones del usuario detección de robo
+
 public sealed class RefreshToken : Entity
 {
     private RefreshToken()
@@ -86,7 +85,7 @@ public sealed class RefreshToken : Entity
     }
 }
 
-/// <summary>Notificación persistida (bandeja in-app) que además se envía como push.</summary>
+//Notificación persistida que además se envía como push.
 public sealed class Notificacion : Entity
 {
     private Notificacion()

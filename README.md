@@ -15,11 +15,14 @@ KARider-back/
 ├── Dockerfile
 ├── .github/workflows/
 │   ├── ci.yml                    ← compilación, pruebas, migraciones y vulnerabilidades
+│   ├── sonarcloud.yml            ← análisis de calidad con SonarQube Cloud (Sprint 3)
 │   └── deploy-azure.yml          ← despliegue a Azure App Service con OIDC
 ├── docs/
 │   ├── arquitectura.md           ← capas, mapeo pantallas → endpoints, modelo de datos, escalamiento y seguridad
 │   ├── errores.md                ← formato y catálogo de códigos de error
-│   └── despliegue-azure.md       ← guía paso a paso
+│   ├── despliegue-azure.md       ← guía paso a paso
+│   ├── calidad-codigo.md         ← SonarQube Cloud: instalación, configuración y ejecución
+│   └── versionamiento-bd.md      ← migraciones: aplicar, ver pendientes, revertir y reaplicar
 ├── scripts/generar-secretos.ps1
 ├── src/
 │   ├── KARider.Domain/           ← entidades, reglas de negocio y errores (sin dependencias)
@@ -79,8 +82,28 @@ El esquema se versiona con migraciones de EF Core, una por sprint, y cada una ti
 |---|---|
 | [sprint1_hu01-hu05.sql](database/sprint1_hu01-hu05.sql) | HU-01 a HU-05: carreras, usuarios, códigos de verificación, sesiones, vehículos, puntos de encuentro, viajes y paradas |
 | [sprint2_reservas_calificaciones.sql](database/sprint2_reservas_calificaciones.sql) | Reservas, calificaciones, notificaciones y suscripciones push |
+| [sprint3_historial_ediciones.sql](database/sprint3_historial_ediciones.sql) | HU-09: tabla `historial_ediciones_viaje`, columna `viajes.numero_ediciones` y restricción `ck_viajes_numero_ediciones` |
 
 Para crear la base en Neon, ejecuta `sprint1_hu01-hu05.sql` en el SQL Editor. La API aplica sola las migraciones siguientes si arranca con `Database__AplicarMigracionesAlIniciar=true`. Los scripts no se editan a mano: se cambia el modelo, se crea una migración y se regenera el script con `dotnet ef migrations script`.
+
+### Comandos de migraciones (resumen)
+
+Guía completa en [docs/versionamiento-bd.md](docs/versionamiento-bd.md). Requiere `dotnet-ef` y la variable
+`ConnectionStrings__DefaultConnection` apuntando a la base **local**.
+
+```bash
+dotnet tool install --global dotnet-ef --version 9.0.*
+dotnet ef migrations list   -p src/KARider.Infrastructure -s src/KARider.API          # aplicadas y (Pending)
+dotnet ef database update   -p src/KARider.Infrastructure -s src/KARider.API          # aplicar todas
+dotnet ef database update Sprint3_NumeroEdicionesViaje -p src/KARider.Infrastructure -s src/KARider.API  # revertir la última
+dotnet ef database drop --force -p src/KARider.Infrastructure -s src/KARider.API      # base limpia (solo local)
+```
+
+## Calidad de código (SonarQube Cloud)
+
+Cada push a `develop`/`main` y cada Pull Request ejecutan [sonarcloud.yml](.github/workflows/sonarcloud.yml):
+compila, corre las pruebas con cobertura y publica el análisis en SonarQube Cloud. Necesita el secret
+`SONAR_TOKEN`; la configuración paso a paso está en [docs/calidad-codigo.md](docs/calidad-codigo.md).
 
 ## Convenciones
 

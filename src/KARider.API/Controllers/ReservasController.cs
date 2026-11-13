@@ -11,7 +11,7 @@ namespace KARider.API.Controllers;
 [Route("api/v1/reservas")]
 public sealed class ReservasController(ReservaService reservas) : ApiControllerBase
 {
-    /// <summary>Aparta 1 o 2 asientos; queda Pendiente hasta que el conductor la acepte.</summary>
+    /// <summary>Aparta 1 o 2 asientos; la reserva queda confirmada de inmediato y se genera su folio.</summary>
     [HttpPost("/api/v1/viajes/{viajeId:guid}/reservas")]
     [ProducesResponseType<ReservaDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]

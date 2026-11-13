@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: deploy-production
@@ -66,6 +65,10 @@ jobs:
   deploy:
     name: Desplegar a producción
     needs: build
+    # El token OIDC solo lo necesita el job que inicia sesión en Azure.
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -89,7 +92,7 @@ jobs:
           ./bundle/efbundle --connection "$DB"
 
       - name: Iniciar sesión en Azure (OIDC)
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DB5D6F777D9D42ED938E3371ED3C55E0 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_AC7CF7358391438083C182F68AB6D94C }}
@@ -97,7 +100,7 @@ jobs:
 
       - name: Desplegar en App Service
         id: deploy
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
         with:
           app-name: ${{ vars.AZURE_WEBAPP_NAME || 'KARider-back' }}
           slot-name: Production
