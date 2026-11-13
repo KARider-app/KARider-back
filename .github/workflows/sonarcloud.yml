@@ -69,6 +69,7 @@ jobs:
       - name: Compilar, probar y analizar
         if: env.SONAR_TOKEN != ''
         run: |
+          # qualitygate.wait: el job falla si el Quality Gate falla, para que el check bloquee el merge.
           # Las migraciones de EF Core son código generado por la herramienta (no se edita a mano);
           # se excluyen del análisis igual que en .editorconfig (generated_code = true).
           dotnet sonarscanner begin \
@@ -77,7 +78,7 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.exclusions="**/Persistence/Migrations/**" \
-            /d:sonar.cs.opencover.reportsPaths="tests/**/TestResults/**/coverage.opencover.xml"
+            /d:sonar.cs.opencover.reportsPaths="tests/**/TestResults/**/coverage.opencover.xml"             /d:sonar.qualitygate.wait=true             /d:sonar.qualitygate.timeout=300
           dotnet build KARider.sln -c Release
           dotnet test KARider.sln -c Release --no-build \
             --collect:"XPlat Code Coverage" \
