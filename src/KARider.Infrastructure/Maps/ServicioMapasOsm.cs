@@ -124,7 +124,7 @@ public sealed class ServicioMapasOsm(
         var caja = string.Create(
             CultureInfo.InvariantCulture,
             $"{cerca.Longitud - radio:F4},{cerca.Latitud + radio:F4},{cerca.Longitud + radio:F4},{cerca.Latitud - radio:F4}");
-        var url = $"{opciones.Value.UrlGeocodificacion.TrimEnd('/')}/search?format=jsonv2&limit=1&countrycodes=mx" +
+        var url = $"{opciones.Value.UrlGeocodificacion.TrimEnd('/')}/search?format=jsonv2&limit=5&countrycodes=mx" +
                   $"&accept-language=es&viewbox={caja}&bounded={(acotado ? 1 : 0)}&q={Uri.EscapeDataString(texto)}";
 
         await TurnoNominatim.WaitAsync(ct);
@@ -137,13 +137,17 @@ public sealed class ServicioMapasOsm(
             }
 
             _ultimaConsultaNominatim = DateTimeOffset.UtcNow;
-            var resultados = await http.GetFromJsonAsync<List<ResultadoNominatim>>(url, ct);
-            var primero = resultados?.FirstOrDefault();
-            return primero is not null
-                   && double.TryParse(primero.Lat, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat)
-                   && double.TryParse(primero.Lon, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)
-                ? new PuntoGeo(lat, lon)
-                : null;
+            var resultados = await http.GetFromJsonAsync<List<ResultadoNominatim>>(url, ct) ?? [];
+
+            // Entre los lugares con ese nombre se elige el más cercano al campus (p. ej. "Centro" o "Tula").
+            return resultados
+                .Select(r => double.TryParse(r.Lat, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat)
+                             && double.TryParse(r.Lon, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)
+                    ? new PuntoGeo(lat, lon)
+                    : null)
+                .OfType<PuntoGeo>()
+                .OrderBy(p => DistanciaAproximada(p, cerca))
+                .FirstOrDefault();
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -154,6 +158,14 @@ public sealed class ServicioMapasOsm(
         {
             TurnoNominatim.Release();
         }
+    }
+
+    /// <summary>Distancia al cuadrado en grados, corregida por latitud: suficiente para ordenar por cercanía.</summary>
+    private static double DistanciaAproximada(PuntoGeo a, PuntoGeo b)
+    {
+        var dLat = a.Latitud - b.Latitud;
+        var dLon = (a.Longitud - b.Longitud) * Math.Cos(b.Latitud * Math.PI / 180.0);
+        return dLat * dLat + dLon * dLon;
     }
 
     private sealed record ResultadoNominatim(
