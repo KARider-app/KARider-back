@@ -30,7 +30,7 @@ Los flujos de negocio esperados (sin cupo, duplicados, etc.) se resuelven con `R
 | P5/P6 Consultar viajes | `GET /api/v1/viajes?destino=&puntoEncuentroId=&fecha=&orden=Horario\|MenorAporte\|Calificacion` (busca también en las paradas; si no hay resultados devuelve `items: []`) |
 | P7 Detalle (pasajero) | `GET /api/v1/viajes/{id}` (el teléfono del conductor solo se muestra con reserva confirmada) |
 | P7→P8 Apartar asiento | `POST /api/v1/viajes/{id}/reservas` (1 o 2 asientos; la reserva se confirma automáticamente y devuelve el folio) |
-| P8 Mapa y reserva confirmada | `GET /api/v1/reservas/{id}` (folio, punto de encuentro), `PUT/GET /api/v1/viajes/{id}/ubicacion` |
+| P8 Mapa y reserva confirmada (HU-08) | `GET /api/v1/reservas/{id}` (folio, punto de encuentro), `PUT/GET /api/v1/viajes/{id}/ubicacion`, `GET /api/v1/viajes/{id}/ruta` (ruta real por calles: el destino se geocodifica con Nominatim y la ruta se calcula con OSRM, ambos de OpenStreetMap; si fallan, línea recta), `GET /api/v1/viajes/{id}/llegada` (tiempo y distancia del conductor por calles; solo participantes confirmados con el viaje programado o en curso). Configuración en la sección `Mapas` |
 | P9/P10 Publicar ruta | `POST /api/v1/viajes` (con `publicar=false` se guarda como borrador), cálculo automático del aporte |
 | P11/P12 Detalle conductor / Editar | `GET /api/v1/viajes/{id}` (incluye solicitudes), `PUT /api/v1/viajes/{id}` (notifica a los pasajeros), `PATCH /api/v1/viajes/{id}/estado` |
 | Cálculo del aporte | `aporte = gastoTotal / (asientos + 1)` ($160 / (3 + 1) = $40), `GET /api/v1/viajes/{id}/aportes`, `POST /api/v1/reservas/{id}/aporte-pagado` |
