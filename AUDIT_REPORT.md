@@ -12,6 +12,51 @@
 
 ---
 
+## Actualización · configuración aplicada en GitHub (13-nov, después del traslado a `KARider-app`)
+
+Los repositorios se trasladaron de `aric92045-blip/…` a la organización **`KARider-app`**. Las referencias `aric92045-blip/<repo>` de este documento corresponden al nombre anterior; GitHub redirige al nuevo.
+
+### Aplicado y verificado por API [verificado]
+
+| Configuración | KARider-back | KARider-front |
+|---|---|---|
+| Ruleset **"Producción (main y release)"** (`main`, `release`, `release/**`): PR obligatorio, 1 aprobación de Code Owner, descarta aprobaciones obsoletas, exige aprobar el último push y resolver conversaciones; checks obligatorios con rama al día; prohíbe force push y borrado; solo *merge commit*; **sin bypass** | ✅ | ✅ |
+| Ruleset **"Integración (develop)"**: PR obligatorio, 1 aprobación, descarta aprobaciones obsoletas, conversaciones resueltas, checks obligatorios, sin force push ni borrado, sin bypass | ✅ | ✅ |
+| Checks obligatorios | `Compilar y probar`, `Análisis SonarQube Cloud` | `calidad`, `Análisis SonarQube Cloud` |
+| Merge solo con *merge commit*, ramas conservadas al fusionar, botón *Update branch* | ✅ | ✅ |
+| Dependabot alerts y security updates | ✅ | ✅ |
+| Secret scanning y push protection | ✅ | ✅ |
+| Reporte privado de vulnerabilidades | ✅ | ✅ |
+| `GITHUB_TOKEN` de solo lectura; las Actions no pueden aprobar PR | ✅ | ✅ |
+| Environment **`production`**: aprobación de `aric92045-blip` o `tanis25`, solo desde `main` | ✅ (creado; ver H3) | ✅ |
+
+Efecto comprobado: los PR #31 a #34 pasaron a **`REVIEW_REQUIRED`** y no se pueden fusionar sin la aprobación de otra persona del equipo.
+
+### Hallazgos nuevos por el traslado
+
+| # | Criticidad | Hallazgo | Estado |
+|---|---|---|---|
+| T1 | **Alto** | **La app de SonarCloud no está instalada en `KARider-app`.** El check "SonarCloud Code Analysis" dejó de publicarse y el Quality Gate ya no bloqueaba nada: el PR #34 tenía el Quality Gate en **ERROR** y GitHub lo mostraba en verde. [verificado] | **Corregido:** `sonar.qualitygate.wait=true` en los dos repos. El job "Análisis SonarQube Cloud" falla si el Quality Gate falla y es un check obligatorio. **Pendiente:** instalar la app de SonarCloud en la organización (*sonarcloud.io › My Organizations › Administration › Organization settings › GitHub*) o importar `KARider-app` como organización nueva de SonarCloud. |
+| T2 | **Alto** | **Probable fallo del despliegue del backend.** El inicio de sesión OIDC en Azure valida el *subject* `repo:<dueño>/KARider-back:…`, que ahora es `repo:KARider-app/KARider-back:ref:refs/heads/main`. La credencial federada creada por el portal de Azure apunta al dueño anterior. El último despliegue exitoso (07:13) fue **antes** del traslado (07:35). [no verificado: no ha habido despliegues después] | **Pendiente:** en Azure (Entra ID › App registrations › *la app del despliegue* › Certificates & secrets › Federated credentials), agregar: organización `KARider-app`, repositorio `KARider-back`, entidad *Branch* `main`. Cuando se use el environment, agregar también la entidad *Environment* `production`. |
+| T3 | Medio | `npx oxlint/eslint/prettier` en el CI podía descargar paquetes de internet (SonarCloud `githubactions:S6505`/`S8543`, motivo del ERROR del PR #34). | **Corregido:** scripts `npm run lint:check` y `npm run format:check`. |
+| T4 | Medio | Se siguen haciendo pushes directos a `main` (p. ej. `8adf830`, 07:13, "nombre completo exactamente 40 caracteres"). | **Corregido** con los rulesets: ya no es posible. |
+| T5 | Bajo | Los PR de Dependabot no reciben `SONAR_TOKEN` (GitHub separa los secretos de Dependabot), así que su análisis de Sonar se omite. | **Pendiente:** *Settings › Secrets and variables › Dependabot* › agregar `SONAR_TOKEN`. |
+| T6 | Info | La organización `KARider-app` no tiene configuraciones propias revisables con esta cuenta: `tanis25` aparece como miembro *pending*. | **Pendiente (dueña de la org):** exigir 2FA y permiso base *Read* en *Organization › Settings*. |
+
+### Siguientes pasos para el equipo
+
+1. Aprobar y fusionar los PR, en orden:
+   - back #31 → `main` (hotfix)
+   - back #32 → `develop`
+   - front #33 → `develop`
+   - front #34 → `develop`
+
+   Ya se pidió revisión a `aric92045-blip` y `17301662-RDGJ`.
+2. Completar T2, la credencial federada de Azure, **antes** de la siguiente promoción del backend a `main`.
+3. Front: PR `release → main` (sincronizar) y después `develop → main`. El despliegue pedirá aprobación en el environment `production`.
+
+---
+
 ## A. Resumen ejecutivo
 
 | | Estado | Nota |
