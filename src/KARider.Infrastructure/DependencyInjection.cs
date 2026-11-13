@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using KARider.Application.Abstractions;
+using KARider.Infrastructure.Maps;
 using KARider.Infrastructure.Notifications;
 using KARider.Infrastructure.Persistence;
 using KARider.Infrastructure.Security;
@@ -90,6 +91,19 @@ public static class DependencyInjection
 
         services.Configure<WebPushOptions>(configuration.GetSection(WebPushOptions.SectionName));
         services.AddSingleton<IPushSender, WebPushSender>();
+
+        // HU-08: mapas reales (OpenStreetMap) para la ruta por calles y la llegada del conductor.
+        services.AddMemoryCache();
+        services.AddOptions<MapasOptions>()
+            .Bind(configuration.GetSection(MapasOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddHttpClient<IServicioMapas, ServicioMapasOsm>((sp, http) =>
+        {
+            var mapas = sp.GetRequiredService<IOptions<MapasOptions>>().Value;
+            http.Timeout = TimeSpan.FromSeconds(mapas.TimeoutSegundos);
+            http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", mapas.UserAgent);
+        });
 
         return services;
     }
