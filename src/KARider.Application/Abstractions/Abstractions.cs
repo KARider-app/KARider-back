@@ -76,3 +76,22 @@ public interface IPushSender
         PushMessage message,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>Coordenada geográfica (WGS84).</summary>
+public sealed record PuntoGeo(double Latitud, double Longitud);
+
+/// <summary>Ruta por calles: trazo de la línea, distancia y duración estimada en auto.</summary>
+public sealed record RutaCalculada(IReadOnlyList<PuntoGeo> Trazo, double DistanciaKm, double DuracionMinutos);
+
+/// <summary>
+/// HU-08: servicio de mapas (geocodificación de direcciones y cálculo de rutas por calles).
+/// La implementación usa OpenStreetMap (Nominatim + OSRM); devuelve null si el servicio externo no responde.
+/// </summary>
+public interface IServicioMapas
+{
+    /// <summary>Convierte un texto ("Pachuca", "Tula Centro") en coordenadas, priorizando resultados cerca de <paramref name="cercaDe"/>.</summary>
+    Task<PuntoGeo?> GeocodificarAsync(string direccion, PuntoGeo cercaDe, CancellationToken cancellationToken = default);
+
+    /// <summary>Ruta en auto que pasa por los puntos en orden (mínimo 2).</summary>
+    Task<RutaCalculada?> CalcularRutaAsync(IReadOnlyList<PuntoGeo> puntos, CancellationToken cancellationToken = default);
+}

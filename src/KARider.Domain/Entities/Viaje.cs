@@ -274,6 +274,22 @@ public sealed class Viaje : Entity
         UbicacionActualizadaEn = ahora;
         return Result.Success();
     }
+
+    /// <summary>
+    /// HU-08: guarda las coordenadas del destino obtenidas por geocodificación. Solo se completan si el
+    /// viaje aún no las tiene, para no pisar las que haya capturado el conductor.
+    /// </summary>
+    public bool CompletarCoordenadasDestino(double latitud, double longitud)
+    {
+        if (DestinoLatitud is not null || DestinoLongitud is not null)
+        {
+            return false;
+        }
+
+        DestinoLatitud = latitud;
+        DestinoLongitud = longitud;
+        return true;
+    }
 }
 
 /// <summary>Parada intermedia del itinerario.</summary>

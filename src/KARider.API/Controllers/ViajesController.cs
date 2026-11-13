@@ -68,6 +68,21 @@ public sealed class ViajesController(ViajeService viajes) : ApiControllerBase
     public async Task<IActionResult> ObtenerUbicacion(Guid id, CancellationToken ct) =>
         FromResult(await viajes.ObtenerUbicacionAsync(UsuarioId, id, ct));
 
+    /// <summary>HU-08: ruta real por calles (punto de encuentro → paradas → destino) para el mapa.</summary>
+    [HttpGet("{id:guid}/ruta")]
+    [ProducesResponseType<RutaViajeDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Ruta(Guid id, [FromServices] RutaViajeService rutas, CancellationToken ct) =>
+        FromResult(await rutas.ObtenerRutaAsync(UsuarioId, id, ct));
+
+    /// <summary>HU-08: tiempo estimado de llegada y distancia restante del conductor (solo participantes confirmados).</summary>
+    [HttpGet("{id:guid}/llegada")]
+    [ProducesResponseType<LlegadaConductorDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Llegada(Guid id, [FromServices] RutaViajeService rutas, CancellationToken ct) =>
+        FromResult(await rutas.ObtenerLlegadaAsync(UsuarioId, id, ct));
+
     /// <summary>Resumen del aporte de combustible entre los pasajeros confirmados.</summary>
     [HttpGet("{id:guid}/aportes")]
     [ProducesResponseType<ResumenAporteDto>(StatusCodes.Status200OK)]
