@@ -93,31 +93,32 @@ internal sealed class PuntoEncuentroConfiguration : IEntityTypeConfiguration<Pun
         builder.Property(p => p.Nombre).HasMaxLength(100).IsRequired();
         builder.Property(p => p.Descripcion).HasMaxLength(300).IsRequired();
 
-        // Coordenadas aproximadas del campus UTTT: ajustarlas con el mapa oficial antes de producción.
+        // Coordenadas reales del campus UTTT (Carretera Tula-Tepeji) tomadas de OpenStreetMap: contorno del
+        // campus (way 386380501), estacionamiento (way 907217233) y accesos desde la carretera. Sprint 4 / HU-08.
         builder.HasData(
             new PuntoEncuentro
             {
                 Id = 1,
                 Nombre = "Puerta Principal (Torniquetes Acceso A)",
                 Descripcion = "Junto a la caseta de vigilancia, frente a los torniquetes de acceso peatonal.",
-                Latitud = 20.0875,
-                Longitud = -99.3480
+                Latitud = 20.00997,
+                Longitud = -99.34250
             },
             new PuntoEncuentro
             {
                 Id = 2,
                 Nombre = "Edificio B (Explanada de Sistemas · IDGS)",
                 Descripcion = "Explanada frente al Edificio B, área de Desarrollo y Gestión de Software.",
-                Latitud = 20.0881,
-                Longitud = -99.3472
+                Latitud = 20.00995,
+                Longitud = -99.34395
             },
             new PuntoEncuentro
             {
                 Id = 3,
                 Nombre = "Estacionamiento principal",
                 Descripcion = "Entrada vehicular del estacionamiento principal del campus.",
-                Latitud = 20.0870,
-                Longitud = -99.3489
+                Latitud = 20.00982,
+                Longitud = -99.34285
             });
     }
 }

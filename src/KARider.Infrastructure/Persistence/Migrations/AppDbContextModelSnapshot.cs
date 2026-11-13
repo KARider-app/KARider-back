@@ -432,8 +432,8 @@ namespace KARider.Infrastructure.Persistence.Migrations
                             Id = 1,
                             Activo = true,
                             Descripcion = "Junto a la caseta de vigilancia, frente a los torniquetes de acceso peatonal.",
-                            Latitud = 20.087499999999999,
-                            Longitud = -99.347999999999999,
+                            Latitud = 20.009969999999999,
+                            Longitud = -99.342500000000001,
                             Nombre = "Puerta Principal (Torniquetes Acceso A)"
                         },
                         new
@@ -441,8 +441,8 @@ namespace KARider.Infrastructure.Persistence.Migrations
                             Id = 2,
                             Activo = true,
                             Descripcion = "Explanada frente al Edificio B, área de Desarrollo y Gestión de Software.",
-                            Latitud = 20.088100000000001,
-                            Longitud = -99.347200000000001,
+                            Latitud = 20.00995,
+                            Longitud = -99.343950000000007,
                             Nombre = "Edificio B (Explanada de Sistemas · IDGS)"
                         },
                         new
@@ -450,8 +450,8 @@ namespace KARider.Infrastructure.Persistence.Migrations
                             Id = 3,
                             Activo = true,
                             Descripcion = "Entrada vehicular del estacionamiento principal del campus.",
-                            Latitud = 20.087,
-                            Longitud = -99.3489,
+                            Latitud = 20.009820000000001,
+                            Longitud = -99.342849999999999,
                             Nombre = "Estacionamiento principal"
                         });
                 });
