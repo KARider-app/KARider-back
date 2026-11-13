@@ -41,7 +41,7 @@ public sealed class RegistroRequestValidator : AbstractValidator<RegistroRequest
             .WithMessage("El rol debe ser «Pasajero» o «Conductor».");
         RuleFor(x => x.NombreCompleto)
             .NotEmpty().WithMessage("El nombre completo es obligatorio.")
-            .Length(40, 120).WithMessage("El nombre completo debe tener entre 40 y 120 caracteres.")
+            .Length(40).WithMessage("El nombre completo debe tener exactamente 40 caracteres.")
             .Matches(@"^[\p{L}\s]+$").WithMessage("El nombre completo solo puede contener letras y espacios, como aparece en tu credencial.");
         RuleFor(x => x.Matricula)
             .NotEmpty().WithMessage("La matrícula UTTT es obligatoria.")
