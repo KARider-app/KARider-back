@@ -62,6 +62,18 @@ public sealed class ServicioMapasOsmTests
     }
 
     [Fact]
+    public async Task Entre_varios_lugares_con_el_mismo_nombre_elige_el_mas_cercano_al_campus()
+    {
+        // "Centro": el primer resultado está en Pachuca; el segundo es el centro de Tula, junto al campus.
+        var (servicio, _) = Crear(_ => (HttpStatusCode.OK,
+            """[{"lat":"20.1170","lon":"-98.7330"},{"lat":"x","lon":"y"},{"lat":"20.0539","lon":"-99.3416"}]"""));
+
+        var punto = await servicio.GeocodificarAsync("Centro", Campus);
+
+        Assert.Equal(new PuntoGeo(20.0539, -99.3416), punto);
+    }
+
+    [Fact]
     public async Task Si_no_hay_resultado_cerca_busca_en_todo_Mexico()
     {
         var (servicio, manejador) = Crear(url => url.Contains("bounded=1")
