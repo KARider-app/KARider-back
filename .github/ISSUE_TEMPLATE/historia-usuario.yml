@@ -1,0 +1,27 @@
+name: Historia de usuario / mejora
+description: Nueva funcionalidad o mejora (HU).
+title: "feat: HU-"
+labels: [enhancement]
+body:
+  - type: input
+    id: hu
+    attributes:
+      label: Clave de la HU
+      placeholder: HU-13
+  - type: textarea
+    id: historia
+    attributes:
+      label: Historia
+      value: "Como …\nQuiero …\nPara …"
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación (Dado que / Cuando / Entonces)
+    validations:
+      required: true
+  - type: input
+    id: sprint
+    attributes:
+      label: Sprint y responsable

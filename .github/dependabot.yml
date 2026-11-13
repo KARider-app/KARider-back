@@ -1,0 +1,35 @@
+# Actualizaciones automáticas de dependencias: Dependabot abre PR hacia develop, que pasan por CI y SonarCloud.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Parches y menores juntos en un solo PR; los cambios mayores (p. ej. .NET 10) se revisan aparte.
+      menores:
+        update-types: [minor, patch]
+    ignore:
+      # Paquetes ligados a la versión de .NET: se actualizan junto con el TargetFramework (ver AUDIT_REPORT.md).
+      - dependency-name: "Microsoft.*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "Npgsql.*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "EFCore.*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      acciones:
+        patterns: ["*"]

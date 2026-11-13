@@ -1,0 +1,6 @@
+# Revisores que GitHub solicita automáticamente en cada PR.
+# Con la regla "Require review from Code Owners" activa, basta la aprobación de uno de ellos.
+*                     @aric92045-blip @tanis25 @17301662-RDGJ
+
+# CI/CD y despliegue: cambios sensibles (producción, secretos, permisos).
+/.github/             @aric92045-blip @tanis25
