@@ -34,7 +34,7 @@ Los flujos de negocio esperados (sin cupo, duplicados, etc.) se resuelven con `R
 | P9/P10 Publicar ruta | `POST /api/v1/viajes` (con `publicar=false` se guarda como borrador), cálculo automático del aporte |
 | P11/P12 Detalle conductor / Editar | `GET /api/v1/viajes/{id}` (incluye solicitudes), `PUT /api/v1/viajes/{id}` (notifica a los pasajeros), `PATCH /api/v1/viajes/{id}/estado` |
 | Cálculo del aporte | `aporte = gastoTotal / (asientos + 1)` ($160 / (3 + 1) = $40), `GET /api/v1/viajes/{id}/aportes`, `POST /api/v1/reservas/{id}/aporte-pagado` |
-| P13 Historial | `GET /api/v1/perfil`, `GET /api/v1/perfil/historial?rol=Todos\|Pasajero\|Conductor` |
+| P13 Historial (HU-10) | `GET /api/v1/perfil` (estadísticas), `GET /api/v1/perfil/historial?rol=Todos\|Pasajero\|Conductor` (solo viajes en curso, completados o cancelados del usuario del JWT). Fórmulas en [formulas-impacto.md](formulas-impacto.md) |
 | P14 Calificación mutua | `POST /api/v1/calificaciones`, `GET /api/v1/calificaciones/pendientes`, `GET /api/v1/perfil/calificaciones`, `GET /api/v1/usuarios/{id}/calificaciones` |
 | P15 Credenciales UTTT | `GET /api/v1/perfil/credenciales`, `GET/POST/PUT/DELETE /api/v1/vehiculos` |
 | PWA: notificaciones push | `GET /api/v1/notificaciones`, `GET /api/v1/notificaciones/push/clave-publica`, `POST /api/v1/notificaciones/push/suscripciones` |
