@@ -6,8 +6,10 @@
 name: Calidad de código (SonarQube Cloud)
 
 on:
+  # Solo develop: el plan gratuito de SonarQube Cloud únicamente analiza
+  # la rama principal del proyecto (develop); en main siempre sale "not analyzed".
   push:
-    branches: [main, develop]
+    branches: [develop]
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
