@@ -78,7 +78,9 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.exclusions="**/Persistence/Migrations/**" \
-            /d:sonar.cs.opencover.reportsPaths="tests/**/TestResults/**/coverage.opencover.xml"             /d:sonar.qualitygate.wait=true             /d:sonar.qualitygate.timeout=300
+            /d:sonar.cs.opencover.reportsPaths="tests/**/TestResults/**/coverage.opencover.xml" \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.qualitygate.timeout=300
           dotnet build KARider.sln -c Release
           dotnet test KARider.sln -c Release --no-build \
             --collect:"XPlat Code Coverage" \
