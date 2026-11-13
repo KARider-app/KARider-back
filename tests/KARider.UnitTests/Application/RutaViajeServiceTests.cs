@@ -79,7 +79,12 @@ public sealed class RutaViajeServiceTests
         db.Carreras.Add(new Carrera { Id = 1, Nombre = "ISC" });
         db.PuntosEncuentro.Add(new PuntoEncuentro
         {
-            Id = 1, Nombre = "Puerta Principal", Descripcion = "Caseta", Latitud = 20.0875, Longitud = -99.348, Activo = true,
+            Id = 1,
+            Nombre = "Puerta Principal",
+            Descripcion = "Caseta",
+            Latitud = 20.0875,
+            Longitud = -99.348,
+            Activo = true,
         });
 
         var conductor = Usuario.Crear("Conductor", "22300001", "7731234567", "c@uttt.edu.mx", "hash", Rol.Conductor, 1, 1);

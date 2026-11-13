@@ -35,14 +35,14 @@ public sealed class HistorialEdicionViaje : Entity
         int cuposLibresAnteriores,
         Viaje viajeActualizado,
         string? mensajeAviso) => new()
-    {
-        ViajeId = viajeId,
-        FechaSalidaAnterior = fechaSalidaAnterior,
-        FechaSalidaNueva = viajeActualizado.FechaSalida,
-        PuntoEncuentroAnteriorId = puntoEncuentroAnteriorId,
-        PuntoEncuentroNuevoId = viajeActualizado.PuntoEncuentroId,
-        CuposLibresAnteriores = cuposLibresAnteriores,
-        CuposLibresNuevos = viajeActualizado.AsientosDisponibles,
-        MensajeAviso = string.IsNullOrWhiteSpace(mensajeAviso) ? null : mensajeAviso.Trim()
-    };
+        {
+            ViajeId = viajeId,
+            FechaSalidaAnterior = fechaSalidaAnterior,
+            FechaSalidaNueva = viajeActualizado.FechaSalida,
+            PuntoEncuentroAnteriorId = puntoEncuentroAnteriorId,
+            PuntoEncuentroNuevoId = viajeActualizado.PuntoEncuentroId,
+            CuposLibresAnteriores = cuposLibresAnteriores,
+            CuposLibresNuevos = viajeActualizado.AsientosDisponibles,
+            MensajeAviso = string.IsNullOrWhiteSpace(mensajeAviso) ? null : mensajeAviso.Trim()
+        };
 }
