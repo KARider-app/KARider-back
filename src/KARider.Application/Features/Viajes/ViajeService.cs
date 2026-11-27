@@ -187,7 +187,33 @@ public sealed class ViajeService(
         db.Viajes.Add(resultado.Value);
         await db.SaveChangesAsync(ct);
 
+        if (resultado.Value.Estado == EstadoViaje.Programado)
+        {
+            await NotificarNuevoViajeAsync(resultado.Value, conductorId, ct);
+            await db.SaveChangesAsync(ct);
+            await notificador.DespacharAsync(ct);
+        }
+
         return await ObtenerDetalleAsync(resultado.Value.Id, conductorId, ct);
+    }
+
+    /// <summary>HU-19: avisa a los demás usuarios activos cuando un viaje queda disponible para reservar.</summary>
+    private async Task NotificarNuevoViajeAsync(Viaje viaje, Guid conductorId, CancellationToken ct)
+    {
+        var destinatarios = await db.Usuarios
+            .Where(u => u.Activo && u.Id != conductorId)
+            .Select(u => u.Id)
+            .ToListAsync(ct);
+
+        foreach (var usuarioId in destinatarios)
+        {
+            notificador.Agregar(
+                usuarioId,
+                TipoNotificacion.NuevoViajeDisponible,
+                $"Nuevo viaje a {viaje.Destino}",
+                $"Se publicó un viaje a {viaje.Destino} el {viaje.FechaSalida:dd/MM HH:mm}. ¡Resérvalo antes de que se llene!",
+                viaje.Id);
+        }
     }
 
     public async Task<Result<ViajeDetalleDto>> EditarAsync(Guid conductorId, Guid viajeId, EditarViajeRequest request, CancellationToken ct)
@@ -274,10 +300,17 @@ public sealed class ViajeService(
 
         // Reservas activas antes del cambio: son las que deben enterarse.
         var afectadas = viaje.Reservas.Where(r => r.EstaActiva).ToList();
+        var estadoAnterior = viaje.Estado;
         var resultado = viaje.CambiarEstado(request.Estado, time.GetUtcNow());
         if (resultado.IsFailure)
         {
             return resultado.Error;
+        }
+
+        // HU-19: un borrador recién publicado todavía no tiene pasajeros; se avisa aparte.
+        if (estadoAnterior == EstadoViaje.Borrador && viaje.Estado == EstadoViaje.Programado)
+        {
+            await NotificarNuevoViajeAsync(viaje, conductorId, ct);
         }
 
         var extra = string.IsNullOrWhiteSpace(request.Mensaje) ? string.Empty : $" Mensaje del conductor: {request.Mensaje.Trim()}";
