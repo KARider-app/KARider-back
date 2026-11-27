@@ -34,6 +34,7 @@ public sealed class ValidadoresTests
     [InlineData("sinmayuscula1!", "mayúscula")]
     [InlineData("SinNumero!!", "número")]
     [InlineData("SinEspecial123", "carácter especial")]
+    [InlineData("Karider#2026Karider#2026Karider", "30 caracteres")] // 31 caracteres
     public void Registro_exige_password_segura_con_mensaje_especifico(string password, string mensaje)
     {
         var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido(password: password));
@@ -50,9 +51,29 @@ public sealed class ValidadoresTests
     }
 
     [Theory]
-    [InlineData("Ana López")] // menos de 40 caracteres
-    [InlineData("María José Hernández García Castro López Ramírez")] // más de 40 caracteres
-    [InlineData("Ana María López Hernández García Pérez #2")] // tiene caracteres que no son letras/espacios
+    [InlineData("Ana López")] // nombre corto
+    [InlineData("María José Hernández García Castro López Ramírez")] // 49 letras
+    [InlineData("Ana Sofía Ximena Guadalupe Hernández Gutiérrez de la Fuentes")] // exactamente 60
+    public void Registro_acepta_nombres_de_cualquier_longitud_hasta_60_letras(string nombre)
+    {
+        var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido() with { NombreCompleto = nombre });
+
+        Assert.DoesNotContain(resultado.Errors, e => e.PropertyName == nameof(RegistroRequest.NombreCompleto));
+    }
+
+    [Fact]
+    public void Registro_rechaza_nombre_de_mas_de_60_letras_con_mensaje_claro()
+    {
+        var nombre = "Ana Sofía Ximena Guadalupe Hernández Gutiérrez de la Fuente Ruiz"; // 64 letras
+        var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido() with { NombreCompleto = nombre });
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(RegistroRequest.NombreCompleto) && e.ErrorMessage.Contains("60"));
+    }
+
+    [Theory]
+    [InlineData("")] // vacío
+    [InlineData("Ana María López #2")] // tiene caracteres que no son letras/espacios
+    [InlineData("Ana María López 2")] // tiene números
     public void Registro_rechaza_nombre_completo_fuera_de_las_reglas(string nombre)
     {
         var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido() with { NombreCompleto = nombre });
@@ -92,6 +113,72 @@ public sealed class ValidadoresTests
         var resultado = new VehiculoRequestValidator(TimeProvider.System).Validate(request);
 
         Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(VehiculoRequest.Modelo));
+    }
+
+    [Fact]
+    public void Registro_acepta_password_de_exactamente_30_caracteres()
+    {
+        var password = "Karider#2026Karider#2026Karide"; // 30 caracteres
+        var resultado = new RegistroRequestValidator(Institucion, TimeProvider.System).Validate(RegistroValido(password: password));
+
+        Assert.True(resultado.IsValid, string.Join(" | ", resultado.Errors));
+    }
+
+    [Fact]
+    public void Login_sigue_aceptando_contrasenas_largas_de_cuentas_anteriores()
+    {
+        var request = new LoginRequest("ana.lopez@uttt.edu.mx", new string('K', 40) + "#1a", null, false);
+        var resultado = new LoginRequestValidator(Institucion).Validate(request);
+
+        Assert.True(resultado.IsValid, string.Join(" | ", resultado.Errors));
+    }
+
+    [Theory]
+    [InlineData("Gris Oxford")]
+    [InlineData("Azul Marino")]
+    [InlineData("Rojo Cereza Mat")] // exactamente 15 caracteres
+    public void Vehiculo_acepta_color_solo_con_letras_hasta_15_caracteres(string color)
+    {
+        var request = new VehiculoRequest("Nissan Versa", color, 2022, "HNX421BCD", 4);
+        var resultado = new VehiculoRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.DoesNotContain(resultado.Errors, e => e.PropertyName == nameof(VehiculoRequest.Color));
+    }
+
+    [Theory]
+    [InlineData("Azul 2")] // tiene un número
+    [InlineData("Gris-Plata")] // tiene un guion
+    [InlineData("Rojo!")] // tiene un símbolo
+    [InlineData("Rojo Cereza Mate")] // 16 caracteres
+    [InlineData("")] // vacío
+    public void Vehiculo_rechaza_color_con_numeros_simbolos_o_mas_de_15_caracteres(string color)
+    {
+        var request = new VehiculoRequest("Nissan Versa", color, 2022, "HNX421BCD", 4);
+        var resultado = new VehiculoRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(VehiculoRequest.Color));
+    }
+
+    [Theory]
+    [InlineData(202)] // 3 dígitos
+    [InlineData(20190)] // 5 dígitos
+    [InlineData(-2019)] // negativo
+    [InlineData(1985)] // 4 dígitos pero anterior a 1990
+    public void Vehiculo_rechaza_anio_que_no_sea_de_4_digitos_y_en_rango(int anio)
+    {
+        var request = new VehiculoRequest("Nissan Versa", "Azul", anio, "HNX421BCD", 4);
+        var resultado = new VehiculoRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(VehiculoRequest.Anio));
+    }
+
+    [Fact]
+    public void Vehiculo_con_anio_de_3_o_5_digitos_explica_que_son_4_digitos()
+    {
+        var request = new VehiculoRequest("Nissan Versa", "Azul", 20190, "HNX421BCD", 4);
+        var resultado = new VehiculoRequestValidator(TimeProvider.System).Validate(request);
+
+        Assert.Contains(resultado.Errors, e => e.PropertyName == nameof(VehiculoRequest.Anio) && e.ErrorMessage.Contains("4 dígitos"));
     }
 
     [Theory]
