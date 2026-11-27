@@ -80,6 +80,9 @@ public interface IPushSender
 /// <summary>Coordenada geográfica (WGS84).</summary>
 public sealed record PuntoGeo(double Latitud, double Longitud);
 
+/// <summary>Lugar encontrado al buscar un texto: nombre corto, dirección completa y coordenadas.</summary>
+public sealed record LugarGeo(string Nombre, string Direccion, PuntoGeo Punto);
+
 /// <summary>Ruta por calles: trazo de la línea, distancia y duración estimada en auto.</summary>
 public sealed record RutaCalculada(IReadOnlyList<PuntoGeo> Trazo, double DistanciaKm, double DuracionMinutos);
 
@@ -91,6 +94,9 @@ public interface IServicioMapas
 {
     /// <summary>Convierte un texto ("Pachuca", "Tula Centro") en coordenadas, priorizando resultados cerca de <paramref name="cercaDe"/>.</summary>
     Task<PuntoGeo?> GeocodificarAsync(string direccion, PuntoGeo cercaDe, CancellationToken cancellationToken = default);
+
+    /// <summary>HU-22: lugares que coinciden con el texto, del más cercano a <paramref name="cercaDe"/> al más lejano.</summary>
+    Task<IReadOnlyList<LugarGeo>> BuscarLugaresAsync(string texto, PuntoGeo cercaDe, CancellationToken cancellationToken = default);
 
     /// <summary>Ruta en auto que pasa por los puntos en orden (mínimo 2).</summary>
     Task<RutaCalculada?> CalcularRutaAsync(IReadOnlyList<PuntoGeo> puntos, CancellationToken cancellationToken = default);

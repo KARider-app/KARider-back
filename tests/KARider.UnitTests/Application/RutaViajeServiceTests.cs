@@ -19,6 +19,18 @@ internal sealed class MapasFalsos : IServicioMapas
 
     public List<IReadOnlyList<PuntoGeo>> RutasPedidas { get; } = [];
 
+    public List<(string Texto, PuntoGeo CercaDe)> Busquedas { get; } = [];
+
+    public Task<IReadOnlyList<LugarGeo>> BuscarLugaresAsync(string texto, PuntoGeo cercaDe, CancellationToken cancellationToken = default)
+    {
+        Busquedas.Add((texto, cercaDe));
+        IReadOnlyList<LugarGeo> lugares = Lugares
+            .Where(l => l.Key.Contains(texto, StringComparison.OrdinalIgnoreCase))
+            .Select(l => new LugarGeo(l.Key, l.Key + ", Hidalgo", l.Value))
+            .ToList();
+        return Task.FromResult(lugares);
+    }
+
     public Task<PuntoGeo?> GeocodificarAsync(string direccion, PuntoGeo cercaDe, CancellationToken cancellationToken = default)
     {
         Geocodificaciones++;
@@ -284,5 +296,57 @@ public sealed class RutaViajeServiceTests
 
         Assert.False(viaje.CompletarCoordenadasDestino(20, -99));
         Assert.Equal(1, viaje.DestinoLatitud);
+    }
+
+    [Fact]
+    public async Task HU22_busca_lugares_cerca_del_primer_punto_de_encuentro_activo()
+    {
+        await SembrarAsync();
+        await using var db = NuevoContexto();
+
+        var lugares = await Servicio(db).BuscarLugaresAsync("  tula ", default);
+
+        var lugar = Assert.Single(lugares);
+        Assert.Equal(new LugarDto("Tula Centro", "Tula Centro, Hidalgo", Tula.Latitud, Tula.Longitud), lugar);
+        var (texto, cercaDe) = Assert.Single(_mapas.Busquedas);
+        Assert.Equal("tula", texto);
+        Assert.Equal(new PuntoGeo(20.0875, -99.348), cercaDe);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ab  ")]
+    public async Task HU22_con_menos_de_3_letras_no_consulta_el_mapa(string? texto)
+    {
+        await using var db = NuevoContexto();
+
+        Assert.Empty(await Servicio(db).BuscarLugaresAsync(texto, default));
+        Assert.Empty(_mapas.Busquedas);
+    }
+
+    [Fact]
+    public async Task HU22_sin_puntos_de_encuentro_busca_cerca_de_la_UTTT_y_recorta_textos_largos()
+    {
+        await using var db = NuevoContexto();
+
+        await Servicio(db).BuscarLugaresAsync(new string('a', 200), default);
+
+        var (texto, cercaDe) = Assert.Single(_mapas.Busquedas);
+        Assert.Equal(RutaViajeService.TextoMaximoBusqueda, texto.Length);
+        Assert.Equal(new PuntoGeo(20.00997, -99.34250), cercaDe);
+    }
+
+    [Fact]
+    public async Task HU22_con_coordenadas_elegidas_al_publicar_la_ruta_no_geocodifica_el_destino()
+    {
+        await SembrarAsync(destino: "Un texto que el mapa no conoce", destinoLatitud: Tepeji.Latitud, destinoLongitud: Tepeji.Longitud);
+        await using var db = NuevoContexto();
+
+        var ruta = (await Servicio(db).ObtenerRutaAsync(_pasajeroId, _viajeId, default)).Value;
+
+        Assert.Equal(new PuntoRutaDto(Tepeji.Latitud, Tepeji.Longitud, "Un texto que el mapa no conoce"), ruta.Destino);
+        Assert.True(ruta.PorCalles);
+        Assert.Equal(0, _mapas.Geocodificaciones);
     }
 }
