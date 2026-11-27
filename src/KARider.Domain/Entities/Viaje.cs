@@ -66,8 +66,8 @@ public sealed class Viaje : Entity
     public int AsientosReservados => AsientosOfrecidos - AsientosDisponibles;
 
     /// <summary>
-    /// Divide el gasto entre los asientos ofrecidos más el conductor, quien también aporta su parte.
-    /// Ej. $160 con 3 asientos => $160 / 4 personas = $40 por asiento.
+    /// Divide el gasto solo entre los asientos ofrecidos a pasajeros: el conductor no se cuenta.
+    /// Ej. $150 con 3 asientos => $150 / 3 pasajeros = $50 por asiento.
     /// </summary>
     public static decimal CalcularAporte(decimal gastoTotal, int asientos)
     {
@@ -76,7 +76,7 @@ public sealed class Viaje : Entity
             throw new ArgumentOutOfRangeException(nameof(asientos), "El número de asientos debe ser mayor a cero.");
         }
 
-        return Math.Round(gastoTotal / (asientos + 1), 2, MidpointRounding.AwayFromZero);
+        return Math.Round(gastoTotal / asientos, 2, MidpointRounding.AwayFromZero);
     }
 
     public static Result<Viaje> Crear(
