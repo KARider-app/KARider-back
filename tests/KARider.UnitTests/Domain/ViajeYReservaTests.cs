@@ -21,10 +21,12 @@ public sealed class ViajeYReservaTests
     }
 
     [Theory]
-    [InlineData(160, 3, 40)]
-    [InlineData(100, 1, 50)]
-    [InlineData(100, 2, 33.33)]
-    public void CalcularAporte_divide_entre_pasajeros_mas_conductor(decimal gasto, int asientos, decimal esperado) =>
+    [InlineData(150, 3, 50)]
+    [InlineData(100, 1, 100)]
+    [InlineData(100, 3, 33.33)]
+    [InlineData(160, 4, 40)]
+    [InlineData(0.05, 2, 0.03)]
+    public void CalcularAporte_divide_solo_entre_los_pasajeros_sin_contar_al_conductor(decimal gasto, int asientos, decimal esperado) =>
         Assert.Equal(esperado, Viaje.CalcularAporte(gasto, asientos));
 
     [Fact]
@@ -67,7 +69,7 @@ public sealed class ViajeYReservaTests
         var reserva = Reserva.Crear(viaje, Guid.NewGuid(), 2, Ahora).Value;
 
         Assert.Equal(1, viaje.AsientosDisponibles);
-        Assert.Equal(80m, reserva.MontoAporte);
+        Assert.Equal(106.66m, reserva.MontoAporte); // 2 asientos × (160 / 3 = 53.33)
         Assert.StartsWith("KAR-UTTT-2026-", reserva.Folio, StringComparison.Ordinal);
 
         Assert.True(reserva.Cancelar(viaje, Ahora).IsSuccess);
@@ -182,7 +184,7 @@ public sealed class ViajeYReservaTests
         Assert.True(resultado.IsSuccess);
         Assert.Equal("Centro de Tula", viaje.Destino);
         Assert.Equal(200m, viaje.GastoTotal);
-        Assert.Equal(50m, viaje.AportePorAsiento); // 200 / (3 + 1)
+        Assert.Equal(66.67m, viaje.AportePorAsiento); // 200 / 3 pasajeros
         Assert.Equal("Nota nueva", viaje.Notas);
         Assert.Equal(["Plaza Galerías"], viaje.Paradas.Select(p => p.Nombre));
     }

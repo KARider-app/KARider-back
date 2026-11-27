@@ -9,6 +9,9 @@ namespace KARider.Application.Features.Viajes;
 
 public sealed record PuntoRutaDto(double Latitud, double Longitud, string Nombre);
 
+/// <summary>HU-22: lugar sugerido para el destino del viaje, con sus coordenadas exactas.</summary>
+public sealed record LugarDto(string Nombre, string Direccion, double Latitud, double Longitud);
+
 /// <summary>
 /// Ruta del viaje para dibujarla en el mapa. <c>Trazo</c> son pares [latitud, longitud]. Si
 /// <c>PorCalles</c> es false, el servicio de rutas no respondió y el trazo es una línea recta de respaldo.
@@ -44,6 +47,44 @@ public sealed class RutaViajeService(IApplicationDbContext db, IServicioMapas ma
 {
     /// <summary>Velocidad urbana promedio para el respaldo en línea recta.</summary>
     public const double VelocidadRespaldoKmH = 30;
+
+    /// <summary>Letras mínimas para buscar un lugar: con menos, los resultados no sirven.</summary>
+    public const int TextoMinimoBusqueda = 3;
+
+    /// <summary>Mismo largo máximo que el destino del viaje.</summary>
+    public const int TextoMaximoBusqueda = 150;
+
+    /// <summary>Entrada principal de la UTTT, por si el catálogo de puntos de encuentro está vacío.</summary>
+    private static readonly PuntoGeo CampusUttt = new(20.00997, -99.34250);
+
+    /// <summary>
+    /// HU-22: lugares que coinciden con el texto, del más cercano al campus al más lejano. El conductor elige uno
+    /// al publicar y el viaje se guarda con esas coordenadas, para que el mapa dibuje la ruta exacta.
+    /// </summary>
+    public async Task<IReadOnlyList<LugarDto>> BuscarLugaresAsync(string? texto, CancellationToken ct)
+    {
+        var limpio = texto?.Trim() ?? string.Empty;
+        if (limpio.Length < TextoMinimoBusqueda)
+        {
+            return [];
+        }
+
+        if (limpio.Length > TextoMaximoBusqueda)
+        {
+            limpio = limpio[..TextoMaximoBusqueda];
+        }
+
+        var campus = await db.PuntosEncuentro.AsNoTracking()
+            .Where(p => p.Activo)
+            .OrderBy(p => p.Id)
+            .Select(p => new PuntoGeo(p.Latitud, p.Longitud))
+            .FirstOrDefaultAsync(ct) ?? CampusUttt;
+
+        var lugares = await mapas.BuscarLugaresAsync(limpio, campus, ct);
+        return lugares
+            .Select(l => new LugarDto(l.Nombre, l.Direccion, l.Punto.Latitud, l.Punto.Longitud))
+            .ToList();
+    }
 
     /// <summary>
     /// Ruta punto de encuentro → paradas → destino. Cualquier usuario autenticado puede ver la ruta de un

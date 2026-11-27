@@ -129,4 +129,57 @@ public sealed class ServicioMapasOsmTests
         Assert.Null(await invalido.CalcularRutaAsync(puntos));
         Assert.Null(await sinRuta.CalcularRutaAsync([Campus]));
     }
+
+    [Fact]
+    public async Task HU22_busca_lugares_con_nombre_y_direccion_del_mas_cercano_al_mas_lejano()
+    {
+        var (servicio, manejador) = Crear(_ => (HttpStatusCode.OK, """
+            [
+              {"lat":"20.1170","lon":"-98.7330","name":"Centro","display_name":"Centro, Pachuca de Soto, Hidalgo, 42000, México"},
+              {"lat":"20.0539","lon":"-99.3416","name":"","display_name":"Centro, Tula, Tula de Allende, Hidalgo, 42800, México"},
+              {"lat":"20.0539","lon":"-99.3416","name":"Centro","display_name":"Centro, Tula, Tula de Allende, Hidalgo, 42800, México"},
+              {"lat":"x","lon":"-99.3"}
+            ]
+            """));
+
+        var lugares = await servicio.BuscarLugaresAsync("Centro", Campus);
+        await servicio.BuscarLugaresAsync(" CENTRO ", Campus);
+
+        Assert.Equal(2, lugares.Count);
+        Assert.Equal(new LugarGeo("Centro", "Centro, Tula, Tula de Allende, Hidalgo, 42800", new PuntoGeo(20.0539, -99.3416)), lugares[0]);
+        Assert.Equal("Centro, Pachuca de Soto, Hidalgo, 42000", lugares[1].Direccion);
+        Assert.Single(manejador.Urls);
+    }
+
+    [Fact]
+    public async Task HU22_si_el_texto_completo_no_existe_geocodifica_cada_parte()
+    {
+        var (servicio, manejador) = Crear(url => url.Contains("q=Tula%20Centro")
+            ? (HttpStatusCode.OK, """[{"lat":"20.0539","lon":"-99.3412","name":"Centro","display_name":"Centro, Tula"}]""")
+            : (HttpStatusCode.OK, "[]"));
+
+        var punto = await servicio.GeocodificarAsync("Pachuca Plaza Galerías / Tula Centro", Campus);
+        await servicio.GeocodificarAsync("Pachuca Plaza Galerías / Tula Centro", Campus);
+
+        Assert.Equal(new PuntoGeo(20.0539, -99.3412), punto);
+        // Texto completo y primera parte (acotado y en todo México), luego la segunda parte.
+        // La segunda vez todo sale de la memoria, incluso los textos sin resultados.
+        Assert.Equal(5, manejador.Urls.Count);
+    }
+
+    [Fact]
+    public async Task HU22_si_el_servicio_falla_no_guarda_el_resultado_y_reintenta()
+    {
+        var falla = true;
+        var (servicio, manejador) = Crear(_ => falla
+            ? (HttpStatusCode.ServiceUnavailable, "")
+            : (HttpStatusCode.OK, """[{"lat":"20.0539","lon":"-99.3412","display_name":"Tula, Hidalgo, México"}]"""));
+
+        Assert.Empty(await servicio.BuscarLugaresAsync("Tula", Campus));
+        falla = false;
+        var lugares = await servicio.BuscarLugaresAsync("Tula", Campus);
+
+        Assert.Equal(new LugarGeo("Tula", "Tula, Hidalgo", new PuntoGeo(20.0539, -99.3412)), Assert.Single(lugares));
+        Assert.Equal(3, manejador.Urls.Count);
+    }
 }
