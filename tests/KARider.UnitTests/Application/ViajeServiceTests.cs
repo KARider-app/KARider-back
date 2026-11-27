@@ -21,6 +21,7 @@ public sealed class ViajeServiceTests
     private readonly string _baseDatos = Guid.NewGuid().ToString();
     private Guid _conductorId;
     private Guid _pasajeroId;
+    private Guid _otroUsuarioId;
 
     private AppDbContext NuevoContexto() => new(new DbContextOptionsBuilder<AppDbContext>()
         .UseInMemoryDatabase(_baseDatos)
@@ -60,6 +61,39 @@ public sealed class ViajeServiceTests
 
         await db.SaveChangesAsync();
         return viaje.Id;
+    }
+
+    /// <summary>HU-19: solo el conductor y su vehículo, más un tercer usuario activo ajeno al viaje
+    /// (para comprobar a quién le llega el aviso de viaje nuevo sin publicar uno con SembrarViajeAsync).</summary>
+    private async Task SembrarConductorYOtroUsuarioAsync()
+    {
+        await using var db = NuevoContexto();
+        db.Carreras.Add(new Carrera { Id = 1, Nombre = "ISC" });
+        db.PuntosEncuentro.Add(new PuntoEncuentro { Id = 1, Nombre = "Entrada UTTT", Descripcion = "Caseta principal", Activo = true });
+
+        var conductor = Usuario.Crear("Conductor de prueba", "22300001", "7731234567", "conductor@uttt.edu.mx", "hash", Rol.Conductor, 1, 1);
+        db.Usuarios.Add(conductor);
+        _conductorId = conductor.Id;
+
+        var vehiculo = Vehiculo.Crear(_conductorId, "Nissan Versa", "Azul", 2022, "HNX-421-C", 4);
+        db.Vehiculos.Add(vehiculo);
+
+        var otro = Usuario.Crear("Otro usuario activo", "22300003", "7731234569", "otro@uttt.edu.mx", "hash", Rol.Pasajero, 1, 1);
+        db.Usuarios.Add(otro);
+        _otroUsuarioId = otro.Id;
+
+        await db.SaveChangesAsync();
+    }
+
+    private static PublicarViajeRequest PublicarRequest(bool publicar = true) =>
+        new(null, 1, "Pachuca", null, null, DateTimeOffset.UtcNow.AddHours(2), 3, 160m, "Nota", [], publicar);
+
+    private async Task<Result<ViajeDetalleDto>> PublicarAsync(PublicarViajeRequest request, Guid? conductorId = null)
+    {
+        await using var db = NuevoContexto();
+        var notificador = new Notificador(db, new PushFalso(), NullLogger<Notificador>.Instance);
+        var viajes = new ViajeService(db, notificador, Options.Create(new InstitucionOptions()), TimeProvider.System);
+        return await viajes.PublicarAsync(conductorId ?? _conductorId, request, default);
     }
 
     private async Task<Result<ViajeDetalleDto>> EditarAsync(Guid viajeId, EditarViajeRequest request, Guid? conductorId = null)
@@ -158,6 +192,48 @@ public sealed class ViajeServiceTests
 
         await using var db = NuevoContexto();
         Assert.DoesNotContain(db.Notificaciones, n => n.UsuarioId == _conductorId);
+    }
+
+    [Fact]
+    public async Task Publicar_un_viaje_nuevo_notifica_a_los_demas_usuarios_activos()
+    {
+        await SembrarConductorYOtroUsuarioAsync();
+
+        var resultado = await PublicarAsync(PublicarRequest(publicar: true));
+
+        Assert.True(resultado.IsSuccess, resultado.IsFailure ? resultado.Error.Code : "");
+        await using var db = NuevoContexto();
+        Assert.Contains(
+            db.Notificaciones,
+            n => n.UsuarioId == _otroUsuarioId && n.Tipo == TipoNotificacion.NuevoViajeDisponible);
+        Assert.DoesNotContain(db.Notificaciones, n => n.UsuarioId == _conductorId);
+    }
+
+    [Fact]
+    public async Task Publicar_como_borrador_no_notifica_a_nadie()
+    {
+        await SembrarConductorYOtroUsuarioAsync();
+
+        var resultado = await PublicarAsync(PublicarRequest(publicar: false));
+
+        Assert.True(resultado.IsSuccess, resultado.IsFailure ? resultado.Error.Code : "");
+        await using var db = NuevoContexto();
+        Assert.Empty(db.Notificaciones);
+    }
+
+    [Fact]
+    public async Task Publicar_un_borrador_existente_notifica_a_los_demas_usuarios_activos()
+    {
+        await SembrarConductorYOtroUsuarioAsync();
+        var borrador = await PublicarAsync(PublicarRequest(publicar: false));
+
+        var resultado = await CambiarEstadoAsync(borrador.Value.Id, EstadoViaje.Programado);
+
+        Assert.True(resultado.IsSuccess, resultado.IsFailure ? resultado.Error.Code : "");
+        await using var db = NuevoContexto();
+        Assert.Contains(
+            db.Notificaciones,
+            n => n.UsuarioId == _otroUsuarioId && n.Tipo == TipoNotificacion.NuevoViajeDisponible);
     }
 
     private sealed class PushFalso : IPushSender
