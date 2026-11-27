@@ -41,5 +41,6 @@ public enum TipoNotificacion
     ViajeIniciado = 6,
     ViajeCompletado = 7,
     ViajeCancelado = 8,
-    CalificacionRecibida = 9
+    CalificacionRecibida = 9,
+    NuevoViajeDisponible = 10
 }
