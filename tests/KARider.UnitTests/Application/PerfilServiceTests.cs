@@ -57,7 +57,7 @@ public sealed class PerfilServiceTests
     {
         var viaje = Viaje.Crear(
             conductor.Id, vehiculo, 1, destino, destinoLatitud, destinoLongitud,
-            _ahora.AddHours(horas), 3, 120m, null, [], publicar: true, _ahora).Value;
+            _ahora.AddHours(horas), 3, 90m, null, [], publicar: true, _ahora).Value; // $90 / 3 asientos = $30
         db.Viajes.Add(viaje);
         return viaje;
     }
