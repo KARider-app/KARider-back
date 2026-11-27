@@ -14,6 +14,9 @@ public sealed class Usuario : Entity
     {
     }
 
+    /// <summary>Longitud máxima del nombre completo (solo letras y espacios, como en la credencial).</summary>
+    public const int NombreMaximo = 60;
+
     public string NombreCompleto { get; private set; } = string.Empty;
 
     public string Matricula { get; private set; } = string.Empty;

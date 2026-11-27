@@ -18,8 +18,10 @@ public sealed class VehiculoRequestValidator : AbstractValidator<VehiculoRequest
             .Matches(@"^[\p{L}\s]+$").WithMessage("El modelo del vehículo solo puede contener letras y espacios.");
         RuleFor(x => x.Color)
             .NotEmpty().WithMessage("El color del vehículo es obligatorio.")
-            .MaximumLength(30).WithMessage("El color no puede exceder 30 caracteres.");
+            .MaximumLength(Vehiculo.ColorMaximo).WithMessage($"El color no puede exceder {Vehiculo.ColorMaximo} caracteres.")
+            .Matches(@"^[\p{L}\s]+$").WithMessage("El color del vehículo solo puede contener letras y espacios, sin números ni símbolos.");
         RuleFor(x => x.Anio)
+            .InclusiveBetween(1000, 9999).WithMessage("El año del vehículo debe tener exactamente 4 dígitos (ej. 2019).")
             .InclusiveBetween(1990, anioMaximo).WithMessage($"El año del vehículo debe estar entre 1990 y {anioMaximo}.");
         RuleFor(x => x.Placas)
             .NotEmpty().WithMessage("Las placas del vehículo son obligatorias.")
@@ -41,7 +43,7 @@ public sealed class RegistroRequestValidator : AbstractValidator<RegistroRequest
             .WithMessage("El rol debe ser «Pasajero» o «Conductor».");
         RuleFor(x => x.NombreCompleto)
             .NotEmpty().WithMessage("El nombre completo es obligatorio.")
-            .Length(40).WithMessage("El nombre completo debe tener exactamente 40 caracteres.")
+            .MaximumLength(Usuario.NombreMaximo).WithMessage($"El nombre completo no puede exceder {Usuario.NombreMaximo} letras.")
             .Matches(@"^[\p{L}\s]+$").WithMessage("El nombre completo solo puede contener letras y espacios, como aparece en tu credencial.");
         RuleFor(x => x.Matricula)
             .NotEmpty().WithMessage("La matrícula UTTT es obligatoria.")

@@ -7,6 +7,9 @@ public sealed class Vehiculo : Entity
 {
     public const int CapacidadMaxima = 4;
 
+    /// <summary>Longitud máxima del color (solo letras y espacios, ej. «Gris Oxford»).</summary>
+    public const int ColorMaximo = 15;
+
     private Vehiculo()
     {
     }

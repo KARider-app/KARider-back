@@ -6,11 +6,14 @@ namespace KARider.Application.Common;
 
 public static class ReglasComunes
 {
+    /// <summary>Longitud máxima de una contraseña nueva (registro, restablecer y cambiar).</summary>
+    public const int PasswordMaxima = 30;
+
     public static IRuleBuilderOptions<T, string> PasswordSegura<T>(this IRuleBuilder<T, string> rule) =>
         rule
             .NotEmpty().WithMessage("La contraseña es obligatoria.")
             .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres.")
-            .MaximumLength(128).WithMessage("La contraseña no puede exceder 128 caracteres.")
+            .MaximumLength(PasswordMaxima).WithMessage($"La contraseña no puede exceder {PasswordMaxima} caracteres.")
             .Matches("[A-Z]").WithMessage("La contraseña debe incluir al menos una letra mayúscula.")
             .Matches("[a-z]").WithMessage("La contraseña debe incluir al menos una letra minúscula.")
             .Matches("[0-9]").WithMessage("La contraseña debe incluir al menos un número.")
