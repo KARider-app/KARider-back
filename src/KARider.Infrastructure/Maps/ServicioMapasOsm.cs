@@ -17,6 +17,17 @@ public sealed class MapasOptions
     [Required, Url]
     public string UrlGeocodificacion { get; set; } = "https://nominatim.openstreetmap.org";
 
+    /// <summary>
+    /// HU-22: buscador de lugares compatible con Photon (OpenStreetMap). A diferencia de Nominatim, tolera
+    /// palabras de más ("El Cerrito, Infonavit") y nombres incompletos.
+    /// </summary>
+    [Required, Url]
+    public string UrlLugares { get; set; } = "https://photon.komoot.io";
+
+    /// <summary>HU-22: solo se sugieren lugares a esta distancia del campus (Tula, Tepeji, Pachuca, CDMX, Querétaro).</summary>
+    [Range(10, 500)]
+    public double RadioLugaresKm { get; set; } = 150;
+
     /// <summary>Servicio de rutas compatible con OSRM.</summary>
     [Required, Url]
     public string UrlRutas { get; set; } = "https://router.project-osrm.org";
@@ -38,8 +49,9 @@ public sealed class MapasOptions
 }
 
 /// <summary>
-/// HU-08: geocodificación (Nominatim) y rutas por calles (OSRM) sobre OpenStreetMap. Los resultados se guardan en
-/// memoria para no repetir consultas: Nominatim permite como máximo 1 petición por segundo.
+/// HU-08: geocodificación (Photon + Nominatim) y rutas por calles (OSRM) sobre OpenStreetMap. Los resultados se
+/// guardan en memoria para no repetir consultas: Nominatim permite como máximo 1 petición por segundo.
+/// HU-22: los lugares se buscan solo cerca del campus y se ordenan del más cercano al más lejano.
 /// </summary>
 public sealed class ServicioMapasOsm(
     HttpClient http,
@@ -55,27 +67,20 @@ public sealed class ServicioMapasOsm(
 
     /// <summary>Separadores con los que se escriben varios lugares en un mismo texto ("Pachuca / Tula").</summary>
     private static readonly string[] Separadores = ["/", ",", ";", "|", " - "];
+
+    /// <summary>Sugerencias que se devuelven como máximo.</summary>
+    public const int MaximoLugares = 8;
+
+    /// <summary>Partes de un texto que se intentan por separado como máximo (cada una cuesta dos consultas).</summary>
+    private const int MaximoPartes = 3;
     private static readonly TimeSpan VigenciaRuta = TimeSpan.FromHours(6);
 
-    public async Task<PuntoGeo?> GeocodificarAsync(string direccion, PuntoGeo cercaDe, CancellationToken cancellationToken = default)
-    {
-        if ((await BuscarLugaresAsync(direccion, cercaDe, cancellationToken)).FirstOrDefault() is { } lugar)
-        {
-            return lugar.Punto;
-        }
-
-        // Textos como "Pachuca Plaza Galerías / Tula Centro" no existen completos en el mapa:
-        // se intenta cada parte por separado y se usa la primera que se encuentre.
-        foreach (var parte in PartesDe(direccion))
-        {
-            if ((await BuscarLugaresAsync(parte, cercaDe, cancellationToken)).FirstOrDefault() is { } encontrado)
-            {
-                return encontrado.Punto;
-            }
-        }
-
-        return null;
-    }
+    /// <summary>
+    /// Coordenadas del lugar más cercano al campus que coincide con el texto. Ya no se busca en todo México:
+    /// un "Centro" o "El Cerrito" lejano dibujaba rutas de cientos de kilómetros.
+    /// </summary>
+    public async Task<PuntoGeo?> GeocodificarAsync(string direccion, PuntoGeo cercaDe, CancellationToken cancellationToken = default) =>
+        (await BuscarLugaresAsync(direccion, cercaDe, cancellationToken)).FirstOrDefault()?.Punto;
 
     public async Task<IReadOnlyList<LugarGeo>> BuscarLugaresAsync(string texto, PuntoGeo cercaDe, CancellationToken cancellationToken = default)
     {
@@ -85,28 +90,57 @@ public sealed class ServicioMapasOsm(
             return [];
         }
 
-        var clave = $"geo:{limpio.ToLowerInvariant()}:{cercaDe.Latitud:F2},{cercaDe.Longitud:F2}";
+        var clave = $"lugares:{limpio.ToLowerInvariant()}:{cercaDe.Latitud:F2},{cercaDe.Longitud:F2}";
         if (cache.TryGetValue(clave, out IReadOnlyList<LugarGeo>? guardados) && guardados is not null)
         {
             return guardados;
         }
 
-        // Primero dentro de la zona del campus; si no hay resultado, en todo México.
-        var lugares = await ConsultarNominatimAsync(limpio, cercaDe, acotado: true, cancellationToken);
-        if (lugares is not { Count: > 0 })
+        var (lugares, respondio) = await BuscarCercaAsync(limpio, cercaDe, cancellationToken);
+
+        // "El Cerrito, Infonavit" o "Pachuca / Tula" no existen completos en el mapa: se intenta cada parte.
+        if (lugares.Count == 0)
         {
-            lugares = await ConsultarNominatimAsync(limpio, cercaDe, acotado: false, cancellationToken);
+            foreach (var parte in PartesDe(limpio).Take(MaximoPartes))
+            {
+                var (deLaParte, respondioParte) = await BuscarCercaAsync(parte, cercaDe, cancellationToken);
+                lugares.AddRange(deLaParte);
+                respondio |= respondioParte;
+            }
         }
 
-        if (lugares is null)
+        if (!respondio)
         {
-            // El servicio no respondió: no se guarda, para volver a intentarlo en la siguiente consulta.
+            // Ningún servicio respondió: no se guarda, para volver a intentarlo en la siguiente consulta.
             return [];
         }
 
-        // Un texto sin resultados también se recuerda un rato, para no repetir consultas a Nominatim.
-        cache.Set(clave, lugares, lugares.Count > 0 ? VigenciaGeocodificacion : VigenciaSinResultados);
-        return lugares;
+        IReadOnlyList<LugarGeo> ordenados = lugares
+            .DistinctBy(l => (l.Nombre.ToUpperInvariant(), Math.Round(l.Punto.Latitud, 3), Math.Round(l.Punto.Longitud, 3)))
+            .OrderBy(l => DistanciaAproximada(l.Punto, cercaDe))
+            .Take(MaximoLugares)
+            .ToList();
+
+        // Un texto sin resultados también se recuerda un rato, para no repetir consultas a los servicios.
+        cache.Set(clave, ordenados, ordenados.Count > 0 ? VigenciaGeocodificacion : VigenciaSinResultados);
+        return ordenados;
+    }
+
+    /// <summary>
+    /// Busca el texto en Photon y en Nominatim y se queda con los lugares dentro del radio del campus.
+    /// Devuelve también si al menos uno de los dos servicios respondió.
+    /// </summary>
+    private async Task<(List<LugarGeo> Lugares, bool Respondio)> BuscarCercaAsync(string texto, PuntoGeo cerca, CancellationToken ct)
+    {
+        var dePhoton = await ConsultarPhotonAsync(texto, cerca, ct);
+        var deNominatim = await ConsultarNominatimAsync(texto, cerca, ct);
+
+        var radio = opciones.Value.RadioLugaresKm;
+        var cercanos = (dePhoton ?? [])
+            .Concat(deNominatim ?? [])
+            .Where(l => DistanciaKm(l.Punto, cerca) <= radio)
+            .ToList();
+        return (cercanos, dePhoton is not null || deNominatim is not null);
     }
 
     /// <summary>Partes de un texto con varios lugares, sin repetir el texto completo.</summary>
@@ -157,15 +191,62 @@ public sealed class ServicioMapasOsm(
         }
     }
 
-    /// <summary>Lugares encontrados, del más cercano al campus al más lejano; null si el servicio no respondió.</summary>
-    private async Task<IReadOnlyList<LugarGeo>?> ConsultarNominatimAsync(string texto, PuntoGeo cerca, bool acotado, CancellationToken ct)
+    /// <summary>Lugares de Photon cerca del campus; null si el servicio no respondió.</summary>
+    private async Task<IReadOnlyList<LugarGeo>?> ConsultarPhotonAsync(string texto, PuntoGeo cerca, CancellationToken ct)
+    {
+        var radio = opciones.Value.RadioBusquedaGrados;
+        var parametros = string.Create(
+            CultureInfo.InvariantCulture,
+            $"lat={cerca.Latitud:F5}&lon={cerca.Longitud:F5}&limit=10" +
+            $"&bbox={cerca.Longitud - radio:F4},{cerca.Latitud - radio:F4},{cerca.Longitud + radio:F4},{cerca.Latitud + radio:F4}");
+        var url = $"{opciones.Value.UrlLugares.TrimEnd('/')}/api/?{parametros}&q={Uri.EscapeDataString(texto)}";
+
+        try
+        {
+            var respuesta = await http.GetFromJsonAsync<RespuestaPhoton>(url, ct);
+            return (respuesta?.Features ?? [])
+                .Select(f => ALugar(f))
+                .OfType<LugarGeo>()
+                .ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            logger.LogWarning(ex, "No se pudo consultar el buscador de lugares (Photon).");
+            return null;
+        }
+    }
+
+    private static LugarGeo? ALugar(LugarPhoton lugar)
+    {
+        if (lugar.Geometria?.Coordenadas is not { Count: >= 2 } c || lugar.Propiedades is not { } p
+            || (p.CodigoPais is { } pais && !pais.Equals("MX", StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        var calle = string.Join(' ', new[] { p.Calle, p.Numero }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        var partes = new[] { p.Nombre, calle, p.Colonia, p.Localidad, p.Ciudad, p.Municipio, p.Estado }
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (partes.Count == 0)
+        {
+            return null;
+        }
+
+        return new LugarGeo(partes[0], string.Join(", ", partes), new PuntoGeo(c[1], c[0]));
+    }
+
+    /// <summary>Lugares de Nominatim dentro de la zona del campus; null si el servicio no respondió.</summary>
+    private async Task<IReadOnlyList<LugarGeo>?> ConsultarNominatimAsync(string texto, PuntoGeo cerca, CancellationToken ct)
     {
         var radio = opciones.Value.RadioBusquedaGrados;
         var caja = string.Create(
             CultureInfo.InvariantCulture,
             $"{cerca.Longitud - radio:F4},{cerca.Latitud + radio:F4},{cerca.Longitud + radio:F4},{cerca.Latitud - radio:F4}");
-        var url = $"{opciones.Value.UrlGeocodificacion.TrimEnd('/')}/search?format=jsonv2&limit=5&countrycodes=mx" +
-                  $"&accept-language=es&viewbox={caja}&bounded={(acotado ? 1 : 0)}&q={Uri.EscapeDataString(texto)}";
+        var url = $"{opciones.Value.UrlGeocodificacion.TrimEnd('/')}/search?format=jsonv2&limit=8&countrycodes=mx" +
+                  $"&accept-language=es&viewbox={caja}&bounded=1&q={Uri.EscapeDataString(texto)}";
 
         await TurnoNominatim.WaitAsync(ct);
         try
@@ -224,6 +305,18 @@ public sealed class ServicioMapasOsm(
 
     private const string SufijoPais = ", México";
 
+    /// <summary>Distancia en línea recta (Haversine), en km.</summary>
+    private static double DistanciaKm(PuntoGeo a, PuntoGeo b)
+    {
+        const double radioTierraKm = 6371.0;
+        static double Rad(double g) => g * Math.PI / 180.0;
+        var dLat = Rad(b.Latitud - a.Latitud);
+        var dLon = Rad(b.Longitud - a.Longitud);
+        var h = Math.Pow(Math.Sin(dLat / 2), 2)
+            + Math.Cos(Rad(a.Latitud)) * Math.Cos(Rad(b.Latitud)) * Math.Pow(Math.Sin(dLon / 2), 2);
+        return 2 * radioTierraKm * Math.Asin(Math.Min(1, Math.Sqrt(h)));
+    }
+
     /// <summary>Distancia al cuadrado en grados, corregida por latitud: suficiente para ordenar por cercanía.</summary>
     private static double DistanciaAproximada(PuntoGeo a, PuntoGeo b)
     {
@@ -237,6 +330,27 @@ public sealed class ServicioMapasOsm(
         [property: JsonPropertyName("lon")] string? Lon,
         [property: JsonPropertyName("name")] string? Name = null,
         [property: JsonPropertyName("display_name")] string? DisplayName = null);
+
+    private sealed record RespuestaPhoton(
+        [property: JsonPropertyName("features")] List<LugarPhoton>? Features);
+
+    private sealed record LugarPhoton(
+        [property: JsonPropertyName("geometry")] GeometriaPhoton? Geometria,
+        [property: JsonPropertyName("properties")] PropiedadesPhoton? Propiedades);
+
+    private sealed record GeometriaPhoton(
+        [property: JsonPropertyName("coordinates")] List<double>? Coordenadas);
+
+    private sealed record PropiedadesPhoton(
+        [property: JsonPropertyName("name")] string? Nombre,
+        [property: JsonPropertyName("street")] string? Calle,
+        [property: JsonPropertyName("housenumber")] string? Numero,
+        [property: JsonPropertyName("district")] string? Colonia,
+        [property: JsonPropertyName("locality")] string? Localidad,
+        [property: JsonPropertyName("city")] string? Ciudad,
+        [property: JsonPropertyName("county")] string? Municipio,
+        [property: JsonPropertyName("state")] string? Estado,
+        [property: JsonPropertyName("countrycode")] string? CodigoPais);
 
     private sealed record RespuestaOsrm(
         [property: JsonPropertyName("code")] string? Code,
